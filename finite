@@ -1,0 +1,250 @@
+#!/usr/bin/python
+import numpy as np
+import sys, random
+from numpy.linalg import inv
+from numpy import dot
+
+PMAX = 100
+t = 3 #Degree of polynomial (Need t+1 points to define)
+n = 8 #Total number of parties
+
+class col:
+  BLN      ='\033[0m'            # Blank
+  UND      ='\033[1;4m'          # Underlined
+  INV      ='\033[1;7m'          # Inverted
+  CRT      ='\033[1;41m'         # Critical
+  BLK      ='\033[1;30m'         # Black
+  RED      ='\033[1;31m'         # Red
+  GRN      ='\033[1;32m'         # Green
+  YLW      ='\033[1;33m'         # Yellow
+  BLU      ='\033[1;34m'         # Blue
+  MGN      ='\033[1;35m'         # Magenta
+  CYN      ='\033[1;36m'         # Cyan
+  WHT      ='\033[1;37m'         # White
+
+#Finite fields, from https://jeremykun.com/2014/03/13/programming-with-finite-fields/
+def extendedEuclideanAlgorithm(a, b):
+  if abs(b) > abs(a):
+    (x,y,d) = extendedEuclideanAlgorithm(b, a)
+    return (y,x,d)
+  if abs(b) == 0:
+    return (1, 0, a)
+  x1, x2, y1, y2 = 0, 1, 1, 0
+  while abs(b) > 0:
+    q, r = divmod(a,b)
+    x = x2 - q*x1
+    y = y2 - q*y1
+    a, b, x2, x1, y2, y1 = b, r, x1, x, y1, y
+  return (x2, y2, a)
+def IntegersModP(p):
+  class IntegerModP(int):
+    def __init__(self, n):
+      self.n = n % p
+      self.field = IntegerModP
+    def __add__(self, other): return IntegerModP(self.n + other.n)
+    def __sub__(self, other): return IntegerModP(self.n - other.n)
+    def __mul__(self, other): return IntegerModP(self.n * other.n)
+    def __truediv__(self, other): return self * other.inverse()
+    def __div__(self, other): return self * other.inverse()
+    def __neg__(self): return IntegerModP(-self.n)
+    def __eq__(self, other): return isinstance(other, IntegerModP) and self.n == other.n
+    def __abs__(self): return abs(self.n)
+    def __str__(self): return str(self.n)
+    def __repr__(self): return '%d (mod %d)' % (self.n, self.p)
+    def __divmod__(self, divisor):
+      q,r = divmod(self.n, divisor.n)
+      return (IntegerModP(q), IntegerModP(r))
+    def inverse(self):
+     x,y,d = extendedEuclideanAlgorithm(self.n, self.p)
+     return IntegerModP(x)
+  IntegerModP.p = p
+  IntegerModP.__name__ = 'Z/%d' % (p)
+  return IntegerModP
+
+def lagrange(points):
+  def P(x):
+    total = 0
+    n = len(points)
+    for i in range(0,n):
+      xi, yi = points[i]
+      def g(i, n):
+        tot_mul = 1
+        for j in range(0,n):
+          if i == j:
+            continue
+          xj, yj = points[j]
+          tot_mul *= (x - xj) / float(xi - xj)
+        return tot_mul
+      total += yi * g(i, n)
+    return total
+  return P
+
+def polygen(x,d):
+  poly = [x]
+  for i in range(0,d):
+    poly.append(random.randrange(PMAX))
+  return poly
+
+def polyprint(p):
+  print (p[0],end="")
+  for i in range(1,len(p)):
+    print(" + " + str(p[i]) + "x^" + str(i),end="")
+  print()
+
+def evalpolyat(p,x):
+  s = p[0]
+  for i in range(1,len(p)):
+    s += (p[i]*pow(x,i))
+  return s
+
+def testAddition():
+  allshares = []
+  secretsum = 0
+  for j in range(0,2):
+    secret1 = random.randrange(PMAX)
+    secretsum += secret1
+    p1 = polygen(secret1,DEGS)
+    print(p1)
+    print(evalpolyat(p1,0))
+    # polyprint(p)
+    shares = []
+    for i in range(1,DEGS+2):
+      shares.append((i,evalpolyat(p1,i)))
+    print(shares)
+    allshares.append(shares)
+    print()
+  sumshares = []
+  for i in range(0,DEGS+1):
+    sumshares.append((i+1,sum([x[i][1] for x in allshares])))
+  print(sumshares)
+  lang = lagrange(sumshares)
+  print(lang(0))
+  print(secretsum)
+  print("-----")
+
+def testMultiplication():
+  allshares = []
+  secretsum = 0
+  for j in range(0,2):
+    secret1 = random.randrange(PMAX)
+    secretsum += secret1
+    p1 = polygen(secret1,DEGS)
+    print(p1)
+    print(evalpolyat(p1,0))
+    # polyprint(p)
+    shares = []
+    for i in range(1,DEGS+2):
+      shares.append((i,evalpolyat(p1,i)))
+    print(shares)
+    allshares.append(shares)
+    print()
+  sumshares = []
+  for i in range(0,DEGS+1):
+    sumshares.append((i+1,sum([x[i][1] for x in allshares])))
+  print(sumshares)
+  lang = lagrange(sumshares)
+  print(lang(0))
+  print(secretsum)
+  print("-----")
+
+def vandermonde(arr):
+  v = []
+  for x in arr:
+    vr = [1]
+    for i in range(1,len(arr)):
+      vr.append(x*vr[i-1])
+    v.append(vr)
+  print(col.GRN + "V: " + col.BLN + str(v))
+  return v
+def diag(n,t):
+  a = []
+  for i in range(0,n):
+    aa = []
+    for j in range(0,n):
+      if i == j and i >= 0 and i <= t:
+        aa.append(1)
+      else:
+        aa.append(0)
+    a.append(aa)
+  print(col.GRN + "P: " + col.BLN + str(a))
+  return a
+def vpv(n,t,arr):
+  v = vandermonde(arr)
+  p = diag(n,t)
+  return dot(dot(v,p),inv(v))
+
+def main():
+  pass
+  # mod23 = IntegersModP(23)
+  # print(mod23(7).inverse())
+  # print(mod23(7).inverse() * mod23(7))
+
+  # points =[(10,0),(25,30),(50,10),(57,0)]
+  # print (lagrange(points)(0))
+
+  # testAddition()       #Addition
+  # testMultiplication() #Multiplication
+
+  print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
+  l = ["p","q"]
+  allshares = []
+  secretprod = 1
+  #Generate the two numbers we want to multiply
+  for j in range(0,2):
+    secret1 = random.randrange(PMAX)
+    secretprod *= secret1
+    p1 = polygen(secret1,t)
+    print(col.GRN + l[j] + ": " + col.BLN + str(p1))
+    # print(col.GRN + l[j] + "[0]: " + col.BLN + str(evalpolyat(p1,0)))
+    # polyprint(p)
+    shares = []
+    for i in range(1,n+1):
+      shares.append((i,evalpolyat(p1,i)))
+    allshares.append(shares)
+    # print()
+  p = allshares[0]
+  print(col.GRN + "p[j]: " + col.BLN + str(p))
+  q = allshares[1]
+  print(col.GRN + "q[j]: " + col.BLN + str(q))
+  # print("~~~")
+
+  r = []
+  for i in range(0,n):
+    r.append(polygen(0,t*2))
+  print(col.GRN + "r[i]: " + col.BLN + str(r))
+  rshares = []
+  for j in range(1,n+1):
+    rshares.append([evalpolyat(r[i],j) for i in range(0,n)])
+  print(col.GRN + "rshares[j]: " + col.BLN + str(rshares))
+
+  A = vpv(n,t,[i for i in range(1,n+1)])
+  print(col.GRN + "A: " + col.BLN + str(A))
+
+  # print()
+  # print(allshares)
+  v = []
+  for j in range(0,n):
+    pq = p[j][1]*q[j][1]
+    rsum = sum([rshares[j][i] for i in range(0,n)])
+    # print(col.GRN + "pq: " + col.BLN + str(pq))
+    # print(col.RED + "rsum: " + col.BLN + str(rsum))
+    v.append(pq+rsum)
+  print(col.GRN + "v: " + col.BLN + str(v))
+  s = []
+  for j in range(0,n):
+    s.append((j+1,dot(A[j],v)))
+  print(col.GRN + "s: " + col.BLN + str(s))
+
+  #RESULTS
+
+  print("~~~")
+  print(col.GRN + str(secretprod) + col.BLN)
+  # print(col.YLW + str(evalpolyat(s,0)) + col.BLN)
+
+  lang = lagrange(s)
+  print(col.GRN + str(lang(0)) + col.BLN)
+  print("-----")
+
+if __name__ == "__main__":
+  # execute only if run as a script
+  main()
