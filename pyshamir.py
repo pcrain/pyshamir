@@ -16,8 +16,8 @@ from numpy.linalg import inv
 from mpmath import *
 mp.dps = 500; mp.pretty = True
 
-t = 2 #Degree of polynomial (Need t+1 points to define)
-n = 5 #Total number of parties
+t = 4 #Degree of polynomial (Need t+1 points to define)
+n = 15 #Total number of parties
 
 PRIME = 22953686867719691230002707821868552601124472329079
 # PRIME = 2074722246773485207821695222107608587480996474721117292752992589912196684750549658310084416732550077
@@ -116,31 +116,6 @@ def evalpolyat(p,x):
     s += (p[i]*pow(x,i))
   return s
 
-def testAddition():
-  allshares = []
-  secretsum = 0
-  for j in range(0,2):
-    secret1 = random.randrange(PMAX)
-    secretsum += secret1
-    p1 = polygen(secret1,t)
-    print(col.GRN + "p["+str(j)+"]: " + col.BLN + str(p1))
-    # polyprint(p)
-    shares = []
-    for i in range(1,t+2):
-      shares.append((i,evalpolyat(p1,i)))
-    print(col.GRN + "p["+str(j)+"][j]: " + col.BLN + str(shares))
-    allshares.append(shares)
-    print()
-  sumshares = []
-  for i in range(0,t+1):
-    sumshares.append((i+1,sum([x[i][1] for x in allshares])))
-    # sumshares.append((i+1,sum([x[i][1] for x in allshares])))
-  print(col.GRN + "s[j]: " + col.BLN + str(sumshares))
-  print("~~~")
-  lang = lagrange(sumshares)
-  print(col.GRN + str(secretsum) + col.BLN)
-  print(col.GRN + str(lang(0)) + col.BLN)
-
 def vandermonde(arr):
   v = []
   for x in arr:
@@ -176,13 +151,6 @@ def genMatrixA(degree,parties):
   return A
   # return dot(dot(v,p),inv(v))
 
-def genShares(name,secret,t,parties):
-  pg = polygen(secret,t)
-  print(col.GRN + "num: " + col.BLN + str(pg))
-  for p in parties:
-    p.secretshares[name] = (p.id,evalpolyat(pg,p.id) % PRIME)
-  # print(col.GRN + "num[j]: " + col.BLN + str(shares))
-
 class ShareInfo:
   def __init__(self,idlist,j):
     self.idlist  = idlist
@@ -217,7 +185,7 @@ class Party:
     name=s1+"*"+s2
     self.vshares[name] =  self.secretshares[s1][1]*self.secretshares[s2][1]
     self.vshares[name] += sum(self.ranshares[name])
-    print(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
+    # print(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
   def getVShare(self,s1,s2):
     name=s1+"*"+s2
     return self.vshares[s1+"*"+s2]
@@ -228,10 +196,29 @@ class Party:
     name=s1+"*"+s2
     return self.sshares[s1+"*"+s2]
 
+def genShares(name,secret,t,parties):
+  pg = polygen(secret,t)
+  # print(col.GRN + "num: " + col.BLN + str(pg))
+  for p in parties:
+    p.secretshares[name] = (p.id,evalpolyat(pg,p.id) % PRIME)
+  # print(col.GRN + "num[j]: " + col.BLN + str(shares))
+
+def testAddition(ids):
+  ps = [Party(ids[x],x) for x in range(0,len(ids))]  #Generate new parties with the specified ids
+  p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
+  genShares("p",p,t,ps); genShares("q",q,t,ps)       #Distribute the two numbers to all parties
+  print(col.YLW + str(p) + "+" + str(q) + col.BLN)
+
+  sumshares = [(pa.id,pa.secretshares["p"][1] + pa.secretshares["q"][1]) for pa in ps]
+
+  print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p+q) + col.BLN)
+  print(col.MGN + str(ids) + col.GRN + "\n  " + str(int(nint(lagrange(sumshares)(0)))%PRIME) + col.BLN)
+
 def testMultiplication(ids):
   ps = [Party(ids[x],x) for x in range(0,len(ids))]  #Generate new parties with the specified ids
   p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
   genShares("p",p,t,ps); genShares("q",q,t,ps)       #Distribute the two numbers to all parties
+  print(col.YLW + str(p) + "*" + str(q) + col.BLN)
 
   [pa.genRandomP   ("p","q",t    ) for pa in ps]     #Generate a random polynomial r for each party
   [pa.sendRanShares("p","q",ps   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
@@ -240,7 +227,6 @@ def testMultiplication(ids):
   [pa.computeSShare("p","q",v,ids) for pa in ps]     #Compute the shares of the new product
   s = [pa.getSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
 
-  print(col.GRN + "s: " + col.BLN + nstr(s,5))
   print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p*q) + col.BLN)
   print(col.MGN + str(ids) + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
 
@@ -256,7 +242,10 @@ def main():
   )
   partyids = random.sample(range(1,n*10),t*2+1)
 
-  # testAddition()       #Addition
+  print(col.RED + "ADDITION" + col.BLN)
+  testAddition(partyids)       #Addition
+  print()
+  print(col.RED + "MULTIPLICATION" + col.BLN)
   testMultiplication(partyids) #Multiplication
 
 if __name__ == "__main__":
