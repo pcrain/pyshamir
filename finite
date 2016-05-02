@@ -8,11 +8,11 @@ from numpy.linalg import inv
 
 #mpmath for arbitrary float precision
 from mpmath import *
-mp.dps = 50; mp.pretty = True
+mp.dps = 500; mp.pretty = True
 
-PMAX = 10**10
-t = 3 #Degree of polynomial (Need t+1 points to define)
-n = 8 #Total number of parties
+PMAX = 10**2
+t = 2 #Degree of polynomial (Need t+1 points to define)
+n = 5 #Total number of parties
 
 class col:
   BLN      ='\033[0m'            # Blank
@@ -42,6 +42,7 @@ def extendedEuclideanAlgorithm(a, b):
     y = y2 - q*y1
     a, b, x2, x1, y2, y1 = b, r, x1, x, y1, y
   return (x2, y2, a)
+
 def IntegersModP(p):
   class IntegerModP(int):
     def __init__(self, n):
@@ -73,13 +74,14 @@ def lagrange(points):
     n = len(points)
     for i in range(0,n):
       xi, yi = points[i]
+      # print(type(yi))
       def g(i, n):
         tot_mul = 1
         for j in range(0,n):
           if i == j:
             continue
           xj, yj = points[j]
-          tot_mul *= (x - xj) / float(xi - xj)
+          tot_mul *= (x - xj) / mpf(xi - xj)
         return tot_mul
       total += yi * g(i, n)
     return total
@@ -127,67 +129,57 @@ def testAddition():
   print(col.GRN + str(secretsum) + col.BLN)
   print(col.GRN + str(lang(0)) + col.BLN)
 
+#From http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html
 def testMultiplication():
   print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
+  rp = [i for i in range(0,n)]
+  rp = random.sample(range(0,n),t+1)
+  print(col.MGN + "Parties: " + col.BLN + str(rp))
   l = ["p","q"]
   allshares = []
   secretprod = 1
   #Generate the two numbers we want to multiply
   for j in range(0,2):
-    secret1 = random.randrange(PMAX)
-    secretprod *= secret1
-    p1 = polygen(secret1,t)
-    print(col.GRN + l[j] + ": " + col.BLN + str(p1))
-    # print(col.GRN + l[j] + "[0]: " + col.BLN + str(evalpolyat(p1,0)))
-    # polyprint(p)
-    shares = []
-    for i in range(1,n+1):
-      shares.append((i,evalpolyat(p1,i)))
+    S = random.randrange(PMAX)
+    secretprod *= S
+    pg = polygen(S,t)
+    print(col.GRN + l[j] + ": " + col.BLN + str(pg))
+    shares = [(i,evalpolyat(pg,i)) for i in range(1,n+1)]
+    print(col.GRN + l[j] + "[j]: " + col.BLN + str(shares))
     allshares.append(shares)
-    # print()
-  p = allshares[0]
-  print(col.GRN + "p[j]: " + col.BLN + str(p))
-  q = allshares[1]
-  print(col.GRN + "q[j]: " + col.BLN + str(q))
-  # print("~~~")
+  p = allshares[0]; q = allshares[1]
 
-  r = []
-  for i in range(0,n):
-    r.append(polygen(0,t*2))
+  #Generate a random polynomial with r(0) == 0 for each party
+  r = [polygen(0,t*2) for i in range(0,len(rp))]
   print(col.GRN + "r[i]: " + col.BLN + str(r))
-  rshares = []
-  for j in range(1,n+1):
-    rshares.append([evalpolyat(r[i],j) for i in range(0,n)])
+  #Distribute the jth share of party i's r to party j
+  rshares = [[evalpolyat(r[i],j+1) for i in range(0,len(rp))] for j in rp]
   print(col.GRN + "rshares[j]: " + col.BLN + str(rshares))
-
+  #Compute the A matrix
   A = vpv(n,t,[i for i in range(1,n+1)])
   print(col.GRN + "A: " + col.BLN)
   nprint(A,5)
-
-  # print()
-  # print(allshares)
-  v = []
-  for j in range(0,n):
-    pq = p[j][1]*q[j][1]
-    rsum = sum([rshares[j][i] for i in range(0,n)])
-    # print(col.GRN + "pq: " + col.BLN + str(pq))
-    # print(col.RED + "rsum: " + col.BLN + str(rsum))
-    v.append(pq+rsum)
+  #Compute the v matrix
+  v = [p[rp[j]][1]*q[rp[j]][1]+sum([rshares[j][i] for i in range(0,len(rp))]) for j in range(0,len(rp))]
   print(col.GRN + "v: " + col.BLN + str(v))
+  #Compute the shares of the new product
   s = []
-  for j in range(0,n):
-    s.append((j+1,dot(A[j,:],v)))
+  for j in rp:
+    arow = [mpf(A[j,i]) for i in rp]
+    # print(col.YLW + "AROW" + col.BLN)
+    nprint(arow,5)
+    s.append((j+1,dot(arow,v)))
   print(col.GRN + "s: " + col.BLN,end="")
   nprint(s,5)
 
-  #RESULTS
-
-  print("~~~")
+  print("~~~") #RESULTS
+  print(col.MGN + "Answer: " + col.BLN)
   print(col.GRN + str(secretprod) + col.BLN)
-  # print(col.YLW + str(evalpolyat(s,0)) + col.BLN)
-
-  lang = lagrange(s)
-  print(col.GRN + str(int(nint(lang(0)))) + col.BLN)
+  print(col.MGN + "Parties: " + col.BLN + str(rp))
+  print(col.GRN + str(int(nint(lagrange(s)(0)))) + col.BLN)
+  # rp = random.sample(range(0,n),t+1)
+  # print(col.MGN + "Parties: " + col.BLN + str(rp))
+  # print(col.GRN + str(int(nint(lagrange([s[i] for i in rp])(0)))) + col.BLN)
 
 def vandermonde(arr):
   v = []
