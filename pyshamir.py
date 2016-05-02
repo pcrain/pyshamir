@@ -134,52 +134,6 @@ def testAddition():
   print(col.GRN + str(secretsum) + col.BLN)
   print(col.GRN + str(lang(0)) + col.BLN)
 
-#From http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html
-def testMultiplication():
-  print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
-  rp = [i for i in range(0,n)]
-  rp = random.sample(range(0,n*10),t*2+1)
-  print(col.MGN + "Parties: " + col.BLN + str(rp))
-  l = ["p","q"]
-  allshares = []
-  secretprod = 1
-  #Generate and distribute shares of the two numbers we want to multiply
-  for j in range(0,2):
-    S = random.randrange(SMAX)
-    secretprod *= S
-    pg = polygen(S,t)
-    print(col.GRN + l[j] + ": " + col.BLN + str(pg))
-    shares = [(i+1,evalpolyat(pg,i+1) % PRIME) for i in rp]
-    print(col.GRN + l[j] + "[j]: " + col.BLN + str(shares))
-    allshares.append(shares)
-  p = allshares[0]; q = allshares[1]
-  #Generate a random polynomial with r(0) == 0 for each party
-  r = [polygen(0,t*2) for i in range(0,len(rp))]
-  print(col.GRN + "r[i]: " + col.BLN + str(r))
-  #Distribute the jth share of party i's r to party j
-  rshares = [[evalpolyat(r[i],j+1) for i in range(0,len(rp))] for j in rp]
-  print(col.GRN + "rshares[j]: " + col.BLN + str(rshares))
-  #Compute the A matrix
-  A = vpv(len(rp),t,[(j+1) for j in rp])
-  print(col.GRN + "A: " + col.BLN)
-  nprint(A,5)
-  #Compute the v matrix
-  v = [p[j][1]*q[j][1]+sum([rshares[j][i] for i in range(0,len(rp))]) for j in range(0,len(rp))]
-  print(col.GRN + "v: " + col.BLN + str(v))
-  #Compute the shares of the new product
-  s = [(rp[j]+1,dot(A[j,:],v)) for j in range(0,len(rp))]
-  print(col.GRN + "s: " + col.BLN,end="")
-  nprint(s,5)
-
-  print("~~~") #RESULTS
-  print(col.MGN + "Answer: " + col.BLN)
-  print(col.GRN + str(secretprod) + col.BLN)
-  print(col.MGN + "Parties: " + col.BLN + str(rp))
-  print(col.GRN + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
-  # rp = random.sample(range(0,n),t+1)
-  # print(col.MGN + "Parties: " + col.BLN + str(rp))
-  # print(col.GRN + str(int(nint(lagrange([s[i] for i in rp])(0)))) + col.BLN)
-
 def vandermonde(arr):
   v = []
   for x in arr:
@@ -204,12 +158,52 @@ def diag(n,t):
   # print(col.GRN + "P: \n" + col.BLN,end="")
   # nprint(a,5)
   return a
-def vpv(n,t,arr):
+def vpv(t,arr):
+  n = len(arr)
   v = vandermonde(arr)
   p = diag(n,t)
   vp = v*p
   return vp*(v**-1)
   # return dot(dot(v,p),inv(v))
+
+def genShares(secret,t,parties):
+  pg = polygen(secret,t)
+  print(col.GRN + "num: " + col.BLN + str(pg))
+  shares = [(i,evalpolyat(pg,i) % PRIME) for i in parties]
+  print(col.GRN + "num[j]: " + col.BLN + str(shares))
+  return shares
+
+#From http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html
+def testMultiplication():
+  print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
+  rp = random.sample(range(1,n*10),t*2+1)
+  print(col.MGN + "Parties: " + col.BLN + str(rp))
+  sshares = []
+  secretprod = 1
+  #Generate and distribute shares of the two numbers we want to multiply
+  for j in range(0,2):
+    S = random.randrange(SMAX)
+    secretprod *= S
+    sshares.append(genShares(S,t,rp))
+  #Generate a random polynomial with r(0) == 0 for each party
+  r = [polygen(0,t*2) for i in range(0,len(rp))]
+  print(col.GRN + "r[i]: " + col.BLN + str(r))
+  #Distribute the jth share of party i's r to party j
+  rshares = [[evalpolyat(r[i],j) for i in range(0,len(rp))] for j in rp]
+  print(col.GRN + "rshares[j]: " + col.BLN + str(rshares))
+  #Compute the A matrix
+  A = vpv(t,rp)
+  print(col.GRN + "A: " + col.BLN + "\n" + nstr(A,5))
+  #Compute the v matrix
+  v = [sshares[0][j][1]*sshares[1][j][1]+sum([rshares[j][i] for i in range(0,len(rp))]) for j in range(0,len(rp))]
+  print(col.GRN + "v: " + col.BLN + str(v))
+  #Compute the shares of the new product
+  s = [(rp[j],dot(A[j,:],v)) for j in range(0,len(rp))]
+  print(col.GRN + "s: " + col.BLN + nstr(s,5))
+
+  print("~~~") #RESULTS
+  print(col.MGN + "Answer: " + col.GRN + "\n  " + str(secretprod) + col.BLN)
+  print(col.MGN + str(len(rp)) + " Parties: " + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
 
 def main():
   pass
