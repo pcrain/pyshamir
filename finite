@@ -11,8 +11,8 @@ from mpmath import *
 mp.dps = 500; mp.pretty = True
 
 PMAX = 10**2
-t = 2 #Degree of polynomial (Need t+1 points to define)
-n = 5 #Total number of parties
+t = 3 #Degree of polynomial (Need t+1 points to define)
+n = 8 #Total number of parties
 
 class col:
   BLN      ='\033[0m'            # Blank
@@ -133,12 +133,12 @@ def testAddition():
 def testMultiplication():
   print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
   rp = [i for i in range(0,n)]
-  rp = random.sample(range(0,n),t+1)
+  rp = random.sample(range(0,n),t*2+1)
   print(col.MGN + "Parties: " + col.BLN + str(rp))
   l = ["p","q"]
   allshares = []
   secretprod = 1
-  #Generate the two numbers we want to multiply
+  #Generate and distribute shares of the two numbers we want to multiply
   for j in range(0,2):
     S = random.randrange(PMAX)
     secretprod *= S
@@ -156,7 +156,7 @@ def testMultiplication():
   rshares = [[evalpolyat(r[i],j+1) for i in range(0,len(rp))] for j in rp]
   print(col.GRN + "rshares[j]: " + col.BLN + str(rshares))
   #Compute the A matrix
-  A = vpv(n,t,[i for i in range(1,n+1)])
+  A = vpv(len(rp),t,[(j+1) for j in rp])
   print(col.GRN + "A: " + col.BLN)
   nprint(A,5)
   #Compute the v matrix
@@ -164,11 +164,11 @@ def testMultiplication():
   print(col.GRN + "v: " + col.BLN + str(v))
   #Compute the shares of the new product
   s = []
-  for j in rp:
-    arow = [mpf(A[j,i]) for i in rp]
+  for j in range(0,len(rp)):
+    # arow = [mpf(A[j,i]) for i in rp]
     # print(col.YLW + "AROW" + col.BLN)
-    nprint(arow,5)
-    s.append((j+1,dot(arow,v)))
+    # nprint(arow,5)
+    s.append((rp[j]+1,dot(A[j,:],v)))
   print(col.GRN + "s: " + col.BLN,end="")
   nprint(s,5)
 
@@ -208,7 +208,8 @@ def diag(n,t):
 def vpv(n,t,arr):
   v = vandermonde(arr)
   p = diag(n,t)
-  return (v*p)*(v**-1)
+  vp = v*p
+  return vp*(v**-1)
   # return dot(dot(v,p),inv(v))
 
 def main():
