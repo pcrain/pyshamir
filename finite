@@ -10,7 +10,7 @@ from numpy.linalg import inv
 from mpmath import *
 mp.dps = 50; mp.pretty = True
 
-PMAX = 10000
+PMAX = 10**10
 t = 3 #Degree of polynomial (Need t+1 points to define)
 n = 8 #Total number of parties
 
@@ -187,7 +187,7 @@ def testMultiplication():
   # print(col.YLW + str(evalpolyat(s,0)) + col.BLN)
 
   lang = lagrange(s)
-  print(col.GRN + str(int(floor(lang(0),prec=0))) + col.BLN)
+  print(col.GRN + str(int(nint(lang(0)))) + col.BLN)
 
 def vandermonde(arr):
   v = []
