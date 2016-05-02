@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import sys, random
+import sys, random, json
 
 #Numpy for matrix stuff
 import numpy as np
@@ -10,11 +10,13 @@ from numpy.linalg import inv
 from mpmath import *
 mp.dps = 500; mp.pretty = True
 
-PRIME = 982451653
-SMAX = 10**3
-PMAX = 10**10
-t = 1 #Degree of polynomial (Need t+1 points to define)
-n = 3 #Total number of parties
+t = 7 #Degree of polynomial (Need t+1 points to define)
+n = 15 #Total number of parties
+
+PRIME = 22953686867719691230002707821868552601124472329079
+# PRIME = 2074722246773485207821695222107608587480996474721117292752992589912196684750549658310084416732550077
+SMAX = int(sqrt(PRIME)) #Maximum value for our secrets
+PMAX = int(pow(PRIME,1/n)) #Maximum value for polynomial coefficients
 
 class col:
   BLN      ='\033[0m'            # Blank
@@ -136,7 +138,7 @@ def testAddition():
 def testMultiplication():
   print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
   rp = [i for i in range(0,n)]
-  rp = random.sample(range(0,n),t*2+1)
+  rp = random.sample(range(0,n*10),t*2+1)
   print(col.MGN + "Parties: " + col.BLN + str(rp))
   l = ["p","q"]
   allshares = []
@@ -147,11 +149,10 @@ def testMultiplication():
     secretprod *= S
     pg = polygen(S,t)
     print(col.GRN + l[j] + ": " + col.BLN + str(pg))
-    shares = [(i,evalpolyat(pg,i) % PRIME) for i in range(1,n+1)]
+    shares = [(i+1,evalpolyat(pg,i+1) % PRIME) for i in rp]
     print(col.GRN + l[j] + "[j]: " + col.BLN + str(shares))
     allshares.append(shares)
   p = allshares[0]; q = allshares[1]
-
   #Generate a random polynomial with r(0) == 0 for each party
   r = [polygen(0,t*2) for i in range(0,len(rp))]
   print(col.GRN + "r[i]: " + col.BLN + str(r))
@@ -163,15 +164,10 @@ def testMultiplication():
   print(col.GRN + "A: " + col.BLN)
   nprint(A,5)
   #Compute the v matrix
-  v = [p[rp[j]][1]*q[rp[j]][1]+sum([rshares[j][i] for i in range(0,len(rp))]) for j in range(0,len(rp))]
+  v = [p[j][1]*q[j][1]+sum([rshares[j][i] for i in range(0,len(rp))]) for j in range(0,len(rp))]
   print(col.GRN + "v: " + col.BLN + str(v))
   #Compute the shares of the new product
-  s = []
-  for j in range(0,len(rp)):
-    # arow = [mpf(A[j,i]) for i in rp]
-    # print(col.YLW + "AROW" + col.BLN)
-    # nprint(arow,5)
-    s.append((rp[j]+1,dot(A[j,:],v)))
+  s = [(rp[j]+1,dot(A[j,:],v)) for j in range(0,len(rp))]
   print(col.GRN + "s: " + col.BLN,end="")
   nprint(s,5)
 
