@@ -1,0 +1,10 @@
+#!/bin/bash
+#Runs a distributor and multiple parties
+
+xfce4-terminal -H --geometry=80x12+0+0 --command "./distributor.py && read"
+sleep 1
+xfce4-terminal -H --geometry=80x12+0+280 --command "./party.py 0 && read"
+xfce4-terminal -H --geometry=80x12+0+560 --command "./party.py 1 && read"
+xfce4-terminal -H --geometry=80x12+0+840 --command "./party.py 2 && read"
+xfce4-terminal -H --geometry=80x12+900+0 --command "./party.py 3 && read"
+xfce4-terminal -H --geometry=80x12+900+840 --command "./party.py 4 && read"
