@@ -21,8 +21,8 @@ t = 2 #Degree of polynomial (Need t+1 points to define)
 n = 5 #Total number of parties
 
 IDS = [1,2,3,4,5]
-PRIME = 22953686867719691230002707821868552601124472329079
-# PRIME = 2074722246773485207821695222107608587480996474721117292752992589912196684750549658310084416732550077
+# PRIME = 22953686867719691230002707821868552601124472329079
+PRIME = 2074722246773485207821695222107608587480996474721117292752992589912196684750549658310084416732550077
 SMAX = int(sqrt(PRIME)) #Maximum value for our secrets
 PMAX = int(pow(PRIME,1/n)) #Maximum value for polynomial coefficients
 
@@ -82,6 +82,8 @@ def IntegersModP(p):
 
 def cleanup():
   folder = '_cloud'
+  if not os.path.exists(folder):
+    return
   for f in os.listdir(folder):
     file_path = os.path.join(folder, f)
     try:

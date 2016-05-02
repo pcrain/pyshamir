@@ -1,22 +1,22 @@
 #!/usr/bin/python
 from pyshamir import *
 
-IDS = [1,2,3,4,5]
-
-def protocol():
+def protocol(total):
   #Clear old files
   cleanup()
   #Constant
+  IDS = [i for i in range(1,total+1)]
+  t = int((total-1)/2)
   ps = [Party(IDS[x],x) for x in range(0,len(IDS))]  #Generate new parties with the specified ids
 
   #Main Generate
   print(col.WHT+"Generating random numbers p,q"+col.BLN)
   p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
   print(col.YLW + "Computing " + str(p) + "*" + str(q) + col.BLN)
-  print(col.WHT+"Generating polynomials p,q"+col.BLN)
+  print(col.WHT+"Generating polynomials for p,q"+col.BLN)
   pp = polygen(p,t)
   qq = polygen(q,t)
-  print(col.WHT+"Distributing polynomials p,q"+col.BLN)
+  print(col.WHT+"Distributing polynomials for p,q"+col.BLN)
   [easyWrite("_cloud/"+str(pa.id)+"p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
   [easyWrite("_cloud/"+str(pa.id)+"q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
 
@@ -33,4 +33,10 @@ def protocol():
   print(col.MGN + str(IDS) + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
 
 if __name__ == "__main__":
-  protocol()
+  if not os.path.exists("_cloud"):
+    os.makedirs("_cloud")
+  argv = sys.argv
+  argc = len(argv)
+  if argc < 2:
+    sys.exit(-1)
+  protocol(int(argv[1]))

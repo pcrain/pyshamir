@@ -1,10 +1,19 @@
 #!/bin/bash
 #Runs a distributor and multiple parties
 
-xfce4-terminal -H --geometry=80x12+0+0 --command "./distributor.py && read"
-sleep 1
-xfce4-terminal -H --geometry=80x12+0+280 --command "./party.py 0 && read"
-xfce4-terminal -H --geometry=80x12+0+560 --command "./party.py 1 && read"
-xfce4-terminal -H --geometry=80x12+0+840 --command "./party.py 2 && read"
-xfce4-terminal -H --geometry=80x12+900+0 --command "./party.py 3 && read"
-xfce4-terminal -H --geometry=80x12+900+840 --command "./party.py 4 && read"
+[ -e _cloud ] && rm -r _cloud
+# xfce4-terminal -H --geometry=90x16+0+400 --command "./party.py 0 && read"
+# xfce4-terminal -H --geometry=90x16+0+800 --command "./party.py 1 && read"
+# xfce4-terminal -H --geometry=90x16+900+0 --command "./party.py 2 && read"
+# xfce4-terminal -H --geometry=90x16+900+400 --command "./party.py 3 && read"
+# xfce4-terminal -H --geometry=90x16+900+800 --command "./party.py 4 && read"
+# sleep 1
+# xfce4-terminal -H --geometry=90x16+0+0 --command "./distributor.py && read"
+
+i=0
+n=10
+while [[ $i -lt $n ]]; do
+  xfce4-terminal -H --geometry=90x16+$(($RANDOM % 1200))+$(($RANDOM % 800)) --command "./party.py $i $n"
+  i=$((i+1))
+done
+xfce4-terminal -H --geometry=90x24+500+320 --command "./distributor.py $n"

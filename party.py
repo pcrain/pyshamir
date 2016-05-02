@@ -1,11 +1,13 @@
 #!/usr/bin/python
 from pyshamir import *
 
-IDS = [1,2,3,4,5]
 
-def protocol(id):
+def protocol(id,total):
+  IDS = [i for i in range(1,total+1)]
   sid = str(id)
+  t = int((total-1)/2)
   ps = [Party(IDS[x],x) for x in range(0,len(IDS))]  #Generate new parties with the specified ids
+  print(id)
   pa = Party(IDS[id],id)  #Generate new parties with the specified ids
 
   print(col.WHT+"Loading share " + sid + " of p"+col.BLN)
@@ -37,6 +39,6 @@ def protocol(id):
 if __name__ == "__main__":
   argv = sys.argv
   argc = len(argv)
-  if argc < 2:
+  if argc < 3:
     sys.exit(-1)
-  protocol(int(argv[1]))
+  protocol(int(argv[1]),int(argv[2]))
