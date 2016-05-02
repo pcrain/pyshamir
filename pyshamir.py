@@ -5,6 +5,7 @@
 #  My reference for implementing BGW
 #    http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html
 import sys, random, json
+from random import shuffle
 
 #Numpy for matrix stuff
 import numpy as np
@@ -171,72 +172,77 @@ def genMatrixA(degree,parties):
   p = diag(len(parties),degree)
   vp = v*p
   A = vp*(v**-1)
-  print(col.GRN + "A: " + col.BLN + "\n" + nstr(A,5))
+  # print(col.GRN + "A: " + col.BLN + "\n" + nstr(A,5))
   return A
   # return dot(dot(v,p),inv(v))
 
 def genShares(name,secret,t,parties):
   pg = polygen(secret,t)
   print(col.GRN + "num: " + col.BLN + str(pg))
-  shares = []
   for p in parties:
-    p.sshares[name] = (p.id,evalpolyat(pg,p.id) % PRIME)
-    shares.append(p.sshares[name])
-  print(col.GRN + "num[j]: " + col.BLN + str(shares))
-  return shares
+    p.secretshares[name] = (p.id,evalpolyat(pg,p.id) % PRIME)
+  # print(col.GRN + "num[j]: " + col.BLN + str(shares))
+
+class ShareInfo:
+  def __init__(self,idlist,j):
+    self.idlist  = idlist
+    self.arow = genMatrixA(t,idlist)[j,:] #We only need one row from the A matrix
 
 class Party:
-  def __init__(self,id):
-    self.id = id
-    self.sshares = {}
-    self.genranpoly = {}
-    self.getranshares = {}
+  def __init__(self,myid,j):
+    self.id = myid
+    self.relid = j
+    self.shareinfo = {}
+    self.secretshares = {}
+    self.ranpoly = {}
+    self.ranshares = {}
     self.vshares = {}
+    self.sshares = {}
   def genRandomP(self,s1,s2,t):
-    self.genranpoly[s1+"*"+s2] = polygen(0,t*2)
-    # print(col.GRN + "r[i]: " + col.BLN + str(self.genranpoly))
-  def sendRanShare(self,other,s1,s2):
     name=s1+"*"+s2
-    s = evalpolyat(self.genranpoly[name],other.id)
-    other.acceptRanShare(s,name)
+    self.ranpoly[name] = polygen(0,t*2)
+    # print(col.GRN + "r[i]: " + col.BLN + str(self.ranpoly))
+  def sendRanShares(self,s1,s2,others):
+    name=s1+"*"+s2
+    for o in others:
+      s = evalpolyat(self.ranpoly[name],o.id)
+      o.acceptRanShare(s,name)
     # print(col.GRN + "rshares[j]: " + col.BLN + str(s))
   def acceptRanShare(self,share,name):
-    if name in self.getranshares.keys():
-      self.getranshares[name].append(share)
+    if name in self.ranshares.keys():
+      self.ranshares[name].append(share)
     else:
-      self.getranshares[name] = [share]
-  def computeVShare(self,s1,s2,rp):
+      self.ranshares[name] = [share]
+  def computeVShare(self,s1,s2):
     name=s1+"*"+s2
-    self.vshares[name] =  self.sshares[s1][1]*self.sshares[s2][1]
-    self.vshares[name] += sum(self.getranshares[name])
+    self.vshares[name] =  self.secretshares[s1][1]*self.secretshares[s2][1]
+    self.vshares[name] += sum(self.ranshares[name])
     print(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
+  def getVShare(self,s1,s2):
+    name=s1+"*"+s2
+    return self.vshares[s1+"*"+s2]
+  def computeSShare(self,s1,s2,v,ids):
+    name=s1+"*"+s2
+    self.sshares[name] = (self.id,dot(genMatrixA(t,ids)[self.relid,:],v))
+  def getSShare(self,s1,s2):
+    name=s1+"*"+s2
+    return self.sshares[s1+"*"+s2]
 
-def testMultiplication():
-  print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
-  pids = random.sample(range(1,n*10),t*2+1)
-  parties = [Party(x) for x in pids]
-  print(col.MGN + "Parties: " + col.BLN + str(pids))
-  #Generate and distribute shares of the two numbers we want to multiply
-  p = random.randrange(SMAX)
-  q = random.randrange(SMAX)
-  secretprod = p*q
-  genShares("p",p,t,parties)
-  genShares("q",q,t,parties)
-  #Generate a random polynomial with r(0) == 0 for each party
-  [pa.genRandomP("p","q",t) for pa in parties]
-  #Distribute the jth share of party i's r to party j
-  [[i.sendRanShare(j,"p","q") for i in parties] for j in parties]
-  #Compute the A matrix
-  A = genMatrixA(t,pids)
-  #Compute shares of the v matrix
-  [pa.computeVShare("p","q",pids) for pa in parties]
-  #Distribute the v matrix
-  v = [pa.vshares["p*q"] for pa in parties]
-  #Compute the shares of the new product
-  s = [(pids[j],dot(A[j,:],v)) for j in range(0,len(pids))]
+def testMultiplication(ids):
+  ps = [Party(ids[x],x) for x in range(0,len(ids))]  #Generate new parties with the specified ids
+  p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
+  genShares("p",p,t,ps); genShares("q",q,t,ps)       #Distribute the two numbers to all parties
+
+  [pa.genRandomP   ("p","q",t    ) for pa in ps]     #Generate a random polynomial r for each party
+  [pa.sendRanShares("p","q",ps   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
+  [pa.computeVShare("p","q"      ) for pa in ps]     #Compute shares of the v matrix
+  v = [pa.getVShare("p","q"      ) for pa in ps]     #Aggregate the v matrix (must be done in order)
+  [pa.computeSShare("p","q",v,ids) for pa in ps]     #Compute the shares of the new product
+  s = [pa.getSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
+
   print(col.GRN + "s: " + col.BLN + nstr(s,5))
-  print(col.MGN + "Answer: " + col.GRN + "\n  " + str(secretprod) + col.BLN)
-  print(col.MGN + str(len(pids)) + " Parties: " + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
+  print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p*q) + col.BLN)
+  print(col.MGN + str(ids) + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
 
 def main():
   pass
@@ -244,8 +250,14 @@ def main():
   # print(mod23(7).inverse())
   # print(mod23(7).inverse() * mod23(7))
 
+  print(
+    col.CYN + str(t+1) + "-way secrets with degree t=" +
+    str(t) + " polynomials among " + str(n) + " parties" + col.BLN
+  )
+  partyids = random.sample(range(1,n*10),t*2+1)
+
   # testAddition()       #Addition
-  testMultiplication() #Multiplication
+  testMultiplication(partyids) #Multiplication
 
 if __name__ == "__main__":
   # execute only if run as a script
