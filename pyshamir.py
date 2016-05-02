@@ -1,4 +1,9 @@
 #!/usr/bin/python
+#Python implementation of Shamir's Secret Sharing using the BGW protocol
+#Author: Patrick Crain
+#References:
+#  My reference for implementing BGW
+#    http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html
 import sys, random, json
 
 #Numpy for matrix stuff
@@ -10,8 +15,8 @@ from numpy.linalg import inv
 from mpmath import *
 mp.dps = 500; mp.pretty = True
 
-t = 7 #Degree of polynomial (Need t+1 points to define)
-n = 15 #Total number of parties
+t = 2 #Degree of polynomial (Need t+1 points to define)
+n = 5 #Total number of parties
 
 PRIME = 22953686867719691230002707821868552601124472329079
 # PRIME = 2074722246773485207821695222107608587480996474721117292752992589912196684750549658310084416732550077
@@ -104,6 +109,7 @@ def polyprint(p):
   print()
 
 def evalpolyat(p,x):
+  # print(col.YLW + str(p) + col.RED + str(x) + col.BLN)
   s = p[0]
   for i in range(1,len(p)):
     s += (p[i]*pow(x,i))
@@ -144,6 +150,7 @@ def vandermonde(arr):
   v = matrix(v)
   # print(col.GRN + "V: \n" + col.BLN + str(v))
   return v
+
 def diag(n,t):
   a = []
   for i in range(0,n):
@@ -158,52 +165,78 @@ def diag(n,t):
   # print(col.GRN + "P: \n" + col.BLN,end="")
   # nprint(a,5)
   return a
-def vpv(t,arr):
-  n = len(arr)
-  v = vandermonde(arr)
-  p = diag(n,t)
+
+def genMatrixA(degree,parties):
+  v = vandermonde(parties)
+  p = diag(len(parties),degree)
   vp = v*p
-  return vp*(v**-1)
+  A = vp*(v**-1)
+  print(col.GRN + "A: " + col.BLN + "\n" + nstr(A,5))
+  return A
   # return dot(dot(v,p),inv(v))
 
-def genShares(secret,t,parties):
+def genShares(name,secret,t,parties):
   pg = polygen(secret,t)
   print(col.GRN + "num: " + col.BLN + str(pg))
-  shares = [(i,evalpolyat(pg,i) % PRIME) for i in parties]
+  shares = []
+  for p in parties:
+    p.sshares[name] = (p.id,evalpolyat(pg,p.id) % PRIME)
+    shares.append(p.sshares[name])
   print(col.GRN + "num[j]: " + col.BLN + str(shares))
   return shares
 
-#From http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html
+class Party:
+  def __init__(self,id):
+    self.id = id
+    self.sshares = {}
+    self.genranpoly = {}
+    self.getranshares = {}
+    self.vshares = {}
+  def genRandomP(self,s1,s2,t):
+    self.genranpoly[s1+"*"+s2] = polygen(0,t*2)
+    # print(col.GRN + "r[i]: " + col.BLN + str(self.genranpoly))
+  def sendRanShare(self,other,s1,s2):
+    name=s1+"*"+s2
+    s = evalpolyat(self.genranpoly[name],other.id)
+    other.acceptRanShare(s,name)
+    # print(col.GRN + "rshares[j]: " + col.BLN + str(s))
+  def acceptRanShare(self,share,name):
+    if name in self.getranshares.keys():
+      self.getranshares[name].append(share)
+    else:
+      self.getranshares[name] = [share]
+  def computeVShare(self,s1,s2,rp):
+    name=s1+"*"+s2
+    self.vshares[name] =  self.sshares[s1][1]*self.sshares[s2][1]
+    self.vshares[name] += sum(self.getranshares[name])
+    print(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
+
 def testMultiplication():
   print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
-  rp = random.sample(range(1,n*10),t*2+1)
-  print(col.MGN + "Parties: " + col.BLN + str(rp))
-  sshares = []
-  secretprod = 1
+  pids = random.sample(range(1,n*10),t*2+1)
+  parties = [Party(x) for x in pids]
+  print(col.MGN + "Parties: " + col.BLN + str(pids))
   #Generate and distribute shares of the two numbers we want to multiply
-  for j in range(0,2):
-    S = random.randrange(SMAX)
-    secretprod *= S
-    sshares.append(genShares(S,t,rp))
+  p = random.randrange(SMAX)
+  q = random.randrange(SMAX)
+  secretprod = p*q
+  genShares("p",p,t,parties)
+  genShares("q",q,t,parties)
   #Generate a random polynomial with r(0) == 0 for each party
-  r = [polygen(0,t*2) for i in range(0,len(rp))]
-  print(col.GRN + "r[i]: " + col.BLN + str(r))
+  [pa.genRandomP("p","q",t) for pa in parties]
   #Distribute the jth share of party i's r to party j
-  rshares = [[evalpolyat(r[i],j) for i in range(0,len(rp))] for j in rp]
-  print(col.GRN + "rshares[j]: " + col.BLN + str(rshares))
+  [[i.sendRanShare(j,"p","q") for i in parties] for j in parties]
   #Compute the A matrix
-  A = vpv(t,rp)
-  print(col.GRN + "A: " + col.BLN + "\n" + nstr(A,5))
-  #Compute the v matrix
-  v = [sshares[0][j][1]*sshares[1][j][1]+sum([rshares[j][i] for i in range(0,len(rp))]) for j in range(0,len(rp))]
-  print(col.GRN + "v: " + col.BLN + str(v))
+  A = genMatrixA(t,pids)
+  #Compute shares of the v matrix
+  [pa.computeVShare("p","q",pids) for pa in parties]
+  #Distribute the v matrix
+  v = [pa.vshares["p*q"] for pa in parties]
   #Compute the shares of the new product
-  s = [(rp[j],dot(A[j,:],v)) for j in range(0,len(rp))]
+  s = [(pids[j],dot(A[j,:],v)) for j in range(0,len(pids))]
   print(col.GRN + "s: " + col.BLN + nstr(s,5))
-
-  print("~~~") #RESULTS
   print(col.MGN + "Answer: " + col.GRN + "\n  " + str(secretprod) + col.BLN)
-  print(col.MGN + str(len(rp)) + " Parties: " + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
+  print(col.MGN + str(len(pids)) + " Parties: " + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
 
 def main():
   pass
