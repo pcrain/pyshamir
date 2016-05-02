@@ -1,10 +1,16 @@
 #!/usr/bin/python
-import numpy as np
 import sys, random
-from numpy.linalg import inv
-from numpy import dot
 
-PMAX = 100
+#Numpy for matrix stuff
+import numpy as np
+from numpy import dot
+from numpy.linalg import inv
+
+#mpmath for arbitrary float precision
+from mpmath import *
+mp.dps = 50; mp.pretty = True
+
+PMAX = 10000
 t = 3 #Degree of polynomial (Need t+1 points to define)
 n = 8 #Total number of parties
 
@@ -103,88 +109,25 @@ def testAddition():
   for j in range(0,2):
     secret1 = random.randrange(PMAX)
     secretsum += secret1
-    p1 = polygen(secret1,DEGS)
-    print(p1)
-    print(evalpolyat(p1,0))
+    p1 = polygen(secret1,t)
+    print(col.GRN + "p["+str(j)+"]: " + col.BLN + str(p1))
     # polyprint(p)
     shares = []
-    for i in range(1,DEGS+2):
+    for i in range(1,t+2):
       shares.append((i,evalpolyat(p1,i)))
-    print(shares)
+    print(col.GRN + "p["+str(j)+"][j]: " + col.BLN + str(shares))
     allshares.append(shares)
     print()
   sumshares = []
-  for i in range(0,DEGS+1):
+  for i in range(0,t+1):
     sumshares.append((i+1,sum([x[i][1] for x in allshares])))
-  print(sumshares)
+  print(col.GRN + "s[j]: " + col.BLN + str(sumshares))
+  print("~~~")
   lang = lagrange(sumshares)
-  print(lang(0))
-  print(secretsum)
-  print("-----")
+  print(col.GRN + str(secretsum) + col.BLN)
+  print(col.GRN + str(lang(0)) + col.BLN)
 
 def testMultiplication():
-  allshares = []
-  secretsum = 0
-  for j in range(0,2):
-    secret1 = random.randrange(PMAX)
-    secretsum += secret1
-    p1 = polygen(secret1,DEGS)
-    print(p1)
-    print(evalpolyat(p1,0))
-    # polyprint(p)
-    shares = []
-    for i in range(1,DEGS+2):
-      shares.append((i,evalpolyat(p1,i)))
-    print(shares)
-    allshares.append(shares)
-    print()
-  sumshares = []
-  for i in range(0,DEGS+1):
-    sumshares.append((i+1,sum([x[i][1] for x in allshares])))
-  print(sumshares)
-  lang = lagrange(sumshares)
-  print(lang(0))
-  print(secretsum)
-  print("-----")
-
-def vandermonde(arr):
-  v = []
-  for x in arr:
-    vr = [1]
-    for i in range(1,len(arr)):
-      vr.append(x*vr[i-1])
-    v.append(vr)
-  print(col.GRN + "V: " + col.BLN + str(v))
-  return v
-def diag(n,t):
-  a = []
-  for i in range(0,n):
-    aa = []
-    for j in range(0,n):
-      if i == j and i >= 0 and i <= t:
-        aa.append(1)
-      else:
-        aa.append(0)
-    a.append(aa)
-  print(col.GRN + "P: " + col.BLN + str(a))
-  return a
-def vpv(n,t,arr):
-  v = vandermonde(arr)
-  p = diag(n,t)
-  return dot(dot(v,p),inv(v))
-
-def main():
-  pass
-  # mod23 = IntegersModP(23)
-  # print(mod23(7).inverse())
-  # print(mod23(7).inverse() * mod23(7))
-
-  # points =[(10,0),(25,30),(50,10),(57,0)]
-  # print (lagrange(points)(0))
-
-  # testAddition()       #Addition
-  # testMultiplication() #Multiplication
-
   print(col.CYN + str(t+1) + "-way secrets with degree t=" + str(t) + " polynomials among " + str(n) + " parties" + col.BLN)
   l = ["p","q"]
   allshares = []
@@ -218,7 +161,8 @@ def main():
   print(col.GRN + "rshares[j]: " + col.BLN + str(rshares))
 
   A = vpv(n,t,[i for i in range(1,n+1)])
-  print(col.GRN + "A: " + col.BLN + str(A))
+  print(col.GRN + "A: " + col.BLN)
+  nprint(A,5)
 
   # print()
   # print(allshares)
@@ -232,8 +176,9 @@ def main():
   print(col.GRN + "v: " + col.BLN + str(v))
   s = []
   for j in range(0,n):
-    s.append((j+1,dot(A[j],v)))
-  print(col.GRN + "s: " + col.BLN + str(s))
+    s.append((j+1,dot(A[j,:],v)))
+  print(col.GRN + "s: " + col.BLN,end="")
+  nprint(s,5)
 
   #RESULTS
 
@@ -242,8 +187,46 @@ def main():
   # print(col.YLW + str(evalpolyat(s,0)) + col.BLN)
 
   lang = lagrange(s)
-  print(col.GRN + str(lang(0)) + col.BLN)
-  print("-----")
+  print(col.GRN + str(int(floor(lang(0),prec=0))) + col.BLN)
+
+def vandermonde(arr):
+  v = []
+  for x in arr:
+    vr = [1]
+    for i in range(1,len(arr)):
+      vr.append(x*vr[i-1])
+    v.append(vr)
+  v = matrix(v)
+  # print(col.GRN + "V: \n" + col.BLN + str(v))
+  return v
+def diag(n,t):
+  a = []
+  for i in range(0,n):
+    aa = []
+    for j in range(0,n):
+      if i == j and i >= 0 and i <= t:
+        aa.append(1)
+      else:
+        aa.append(0)
+    a.append(aa)
+  a = matrix(a)
+  # print(col.GRN + "P: \n" + col.BLN,end="")
+  # nprint(a,5)
+  return a
+def vpv(n,t,arr):
+  v = vandermonde(arr)
+  p = diag(n,t)
+  return (v*p)*(v**-1)
+  # return dot(dot(v,p),inv(v))
+
+def main():
+  pass
+  # mod23 = IntegersModP(23)
+  # print(mod23(7).inverse())
+  # print(mod23(7).inverse() * mod23(7))
+
+  # testAddition()       #Addition
+  testMultiplication() #Multiplication
 
 if __name__ == "__main__":
   # execute only if run as a script
