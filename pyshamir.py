@@ -19,6 +19,7 @@ mp.dps = 500; mp.pretty = True
 t = 2 #Degree of polynomial (Need t+1 points to define)
 n = 5 #Total number of parties
 
+CLOUD="_cloud/"
 IDS = [1,2,3,4,5]
 # PRIME = 22953686867719691230002707821868552601124472329079
 PRIME = 2074722246773485207821695222107608587480996474721117292752992589912196684750549658310084416732550077
@@ -80,15 +81,14 @@ def IntegersModP(p):
   return IntegerModP
 
 def cleanup():
-  folder = '_cloud'
-  if not os.path.exists(folder):
+  if not os.path.exists(CLOUD):
     return
-  for f in os.listdir(folder):
-    file_path = os.path.join(folder, f)
+  for f in os.listdir(CLOUD):
+    file_path = os.path.join(CLOUD, f)
     try:
       if os.path.isfile(file_path):
         os.unlink(file_path)
-      #elif os.path.isdir(file_path): shutil.rmtree(file_path)
+      elif os.path.isdir(file_path): shutil.rmtree(file_path)
     except Exception as e:
       print(e)
 
@@ -193,13 +193,13 @@ class Party:
   def writeRanShares(self,s1,s2,others):
     name=s1+"*"+s2
     for o in others:
-      s = evalpolyat(self.ranpoly[name],o.id)
-      easyWrite("_cloud/"+str(o.id)+"_"+str(self.id)+s1+s2+"-ranshare",str(s))
+      s = evalpolyat(self.ranpoly[name],o)
+      easyWrite(CLOUD+str(o)+"/"+str(o)+"_"+str(self.id)+s1+s2+"-ranshare",str(s))
   def loadRanShares(self,s1,s2,others):
     name=s1+"*"+s2
     for o in others:
-      s = evalpolyat(self.ranpoly[name],o.id)
-      share = mpmathify(easyRead("_cloud/"+str(self.id)+"_"+str(o.id)+s1+s2+"-ranshare"))
+      s = evalpolyat(self.ranpoly[name],o)
+      share = mpmathify(easyRead(CLOUD+str(self.id)+"/"+str(self.id)+"_"+str(o)+s1+s2+"-ranshare"))
       if name in self.ranshares.keys():
         self.ranshares[name].append(share)
       else:
@@ -218,7 +218,7 @@ class Party:
     name=s1+"*"+s2
     return self.vshares[s1+"*"+s2]
   def loadVShare(self,s1,s2):
-    fname = "_cloud/"+str(self.id)+s1+s2+"-vshares"
+    fname = CLOUD+str(self.id)+"/"+str(self.id)+s1+s2+"-vshares"
     line = easyRead(fname)
     return mpmathify(line)
   def computeSShare(self,s1,s2,v,arow):
@@ -228,26 +228,26 @@ class Party:
     name=s1+"*"+s2
     return self.sshares[s1+"*"+s2]
   def loadSShare(self,s1,s2):
-    fname = "_cloud/"+str(self.id)+s1+s2+"-sshare"
+    fname = CLOUD+str(self.id)+s1+s2+"-sshare"
     line = easyRead(fname)
     l1 = int(line.split(",")[0].split("(")[1])
     l2 = mpmathify(line.split(",")[1].split(")")[0])
     return (l1,l2)
   def loadSecretShare(self,name):
     print(col.WHT+"Loading share " + str(self.id) + " of "+name+col.BLN)
-    fname = "_cloud/"+str(self.id)+name+"-share"
+    fname = CLOUD+str(self.id)+"/"+str(self.id)+name+"-share"
     # print (col.RED + fname + col.BLN)
     line = mpmathify(easyRead(fname))
     self.secretshares[name] = (self.id,line)
     return(self.secretshares[name])
   def writeSummedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share "+s1+"+"+s2+"[" + str(self.id) + "] to file"+col.BLN)
-    easyWrite("_cloud/"+str(self.id)+newname+"-share",str(self.secretshares[s1][1]+self.secretshares[s2][1]))
+    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+newname+"-share",str(self.secretshares[s1][1]+self.secretshares[s2][1]))
   def writeMultipliedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share s[" + str(self.id) + "] to file"+col.BLN)
-    easyWrite("_cloud/"+str(self.id)+newname+"-share",str(self.sshares[s1+"*"+s2][1]))
+    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+newname+"-share",str(self.sshares[s1+"*"+s2][1]))
   def loadV(self,s1,s2):
-    line = easyRead("_cloud/"+str(self.id)+s1+s2+"-v").replace("[","").replace("]","").replace(" ","")
+    line = easyRead(CLOUD+str(self.id)+"/"+str(self.id)+s1+s2+"-v").replace("[","").replace("]","").replace(" ","")
     lv = line.split(",")
     # print(lv)
     return [mpmathify(l) for l in lv]
@@ -308,8 +308,8 @@ def protocol():
   print(col.YLW + str(p) + "*" + str(q) + col.BLN)
   pp = polygen(p,t)
   qq = polygen(q,t)
-  [easyWrite("_cloud/"+str(pa.id)+"p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
-  [easyWrite("_cloud/"+str(pa.id)+"q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
   #Individual Load and write
   [pa.loadSecretShare("p") for pa in ps]
   [pa.loadSecretShare("q") for pa in ps]
@@ -318,15 +318,15 @@ def protocol():
   [pa.loadRanShares("p","q",ps   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
   #Individual compute
   [pa.computeVShare("p","q"      ) for pa in ps]     #Compute shares of the v matrix
-  [easyWrite("_cloud/"+str(pa.id)+"pq-vshares",str(pa.vshares["p*q"])) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"pq-vshares",str(pa.vshares["p*q"])) for pa in ps]
   v2 = [pa.loadVShare("p","q"      ) for pa in ps]     #Aggregate the v matrix (must be done in order)
-  [easyWrite("_cloud/"+str(pa.id)+"pq-v",str(v2)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"pq-v",str(v2)) for pa in ps]
   v = ps[0].loadV("p","q")
 
   A = genMatrixA(t,IDS)
   [pa.computeSShare(
     "p","q",v,A[pa.relid,:]      ) for pa in ps]     #Compute the shares of the new product
-  [easyWrite("_cloud/"+str(pa.id)+"pq-sshare",str(pa.sshares["p*q"])) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"pq-sshare",str(pa.sshares["p*q"])) for pa in ps]
   #Main Finish
   s = [pa.loadSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
   print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p*q) + col.BLN)

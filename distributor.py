@@ -2,18 +2,18 @@
 from pyshamir import *
 
 def distributeNumber(name,value,parties):
-  t=int((len(ps)-1)/2)
+  t=int((len(parties)-1)/2)
   #Main Generate
   print(col.WHT+"Generating polynomials for "+name+col.BLN)
   pp = polygen(value,t)
   print(col.WHT+"Distributing polynomial for "+name+col.BLN)
-  [easyWrite("_cloud/"+str(pa.id)+name+"-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in parties]
+  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+name+"-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in parties]
 
 def awaitAndComputeV(s1,s2,parties):
   print(col.WHT+"Awaiting shares of ("+s1+"*"+s2+")'s v from all parties"+col.BLN)
   v = [pa.loadVShare(s1,s2) for pa in parties]     #Aggregate the v matrix (must be done in order)
   print(col.WHT+"Distributing v"+col.BLN)
-  [easyWrite("_cloud/"+str(pa.id)+s1+s2+"-v",str(v)) for pa in parties]
+  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+s1+s2+"-v",str(v)) for pa in parties]
 
 def awaitAndComputeShares(s,parties):
   print(col.WHT+"Awaiting shares of "+s+" from all parties"+col.BLN)
@@ -35,15 +35,18 @@ def productProtocol(s1,s2,s3,nparties,ps):
   #Print results
   print(col.MGN + str([p.id for p in ps])   + col.GRN + "\n  " + str(m) + col.BLN)
 
-if __name__ == "__main__":
+def main():
   if len(sys.argv) < 2:            sys.exit(-1)
   if not os.path.exists("_cloud"): os.makedirs("_cloud")
   nparties = int(sys.argv[1])
   cleanup()                        #Clear old files
 
   #Init parties
-  IDS = [i for i in range(1,nparties+1)]
-  ps = [Party(IDS[x],x) for x in range(0,len(IDS))]  #Generate new parties with the specified ids
+  oids = [i*i for i in range(1,nparties+1)]
+  ps = [Party(oids[x],x) for x in range(0,len(oids))]  #Generate new parties with the specified ids
+  for i in oids:
+    fpath = CLOUD+str(i)
+    if not os.path.exists(fpath): os.makedirs(fpath)
 
   p = 42; q = 64
   distributeNumber("p",p,ps)
@@ -55,4 +58,8 @@ if __name__ == "__main__":
   productProtocol("p","q","m",nparties,ps)
   print(col.MGN + "Real Product: " + col.GRN + "\n  " + str(p*q) + col.BLN)
 
-  # sumProtocol("p",42,"q",64,"s",int(sys.argv[1]))
+  sumProtocol("s2",nparties,ps)
+  print(col.MGN + "Real Sum: " + col.GRN + "\n  " + str(p+q+p+q) + col.BLN)
+
+if __name__ == "__main__":
+  main()
