@@ -1,6 +1,8 @@
 #!/usr/bin/python
 from pyshamir import *
 
+_myID = -1
+
 def rGenProtocol(me,s1,s2,t,parties):
   sid = str(me.id)
   print(col.WHT+"Computing random polynomial r[" + sid + "]"+col.BLN)
@@ -19,60 +21,48 @@ def vGenProtocol(me,s1,s2,parties):
   print(col.WHT+"Awaiting v from distributor"+col.BLN)
   return me.loadV(s1,s2)
 
-def sGenProtocol(me,s1,s2,v,t,IDS):
+def sGenProtocol(me,s1,s2,v,t,ps):
+  ids = [p.id for p in ps]
   sid = str(me.id)
   print(col.WHT+"Computing A matrix"+col.BLN)
-  A = genMatrixA(t,IDS)
+  A = genMatrixA(t,ids)
   print(col.WHT+"Computing share " + sid + " of "+s1+"*"+s2+col.BLN)
   me.computeSShare(s1,s2,v,A[me.relid,:]) #Compute the shares of the new product
   return
 
-def reductionProtocol(me,s1,s2,t,ps,IDS):
+def reductionProtocol(me,s1,s2,ps,nparties):
+  t = int((nparties-1)/2)
   rGenProtocol(me,s1,s2,t,ps)       #Load shares
   v = vGenProtocol(me,s1,s2,ps)     #Generate v matrix
-  sGenProtocol(me,s1,s2,v,t,IDS)    #Generate new shares
+  sGenProtocol(me,s1,s2,v,t,ps)    #Generate new shares
 
-# def protocol(id,nparties):
-#   print(str(id))
-
-#   #Init parties
-#   IDS = [i for i in range(1,nparties+1)]
-#   t = int((nparties-1)/2)
-#   ps = [Party(IDS[x],x) for x in range(0,len(IDS))]  #Generate new parties with the specified ids
-
-#   me = ps[id]                          #Generate a new Party with input id
-#   me.loadSecretShare("p")              #Load share for p
-#   me.loadSecretShare("q")              #Load share for q
-#   me.writeSummedShare("p","q","s")     #Write share for s=p+q
-#   reductionProtocol(me,"p","q",t,ps,IDS) #Generate share for m=p*q
-#   me.writeMultipliedShare("p","q","m") #Write new shares to file
-
-def sumProtocol(s1,s2,s3,id,nparties):
-  print(str(id))
+def sumProtocol(s1,s2,s3,nparties):
+  print(str(_myID))
   #Init parties
   IDS = [i for i in range(1,nparties+1)]
-  t = int((nparties-1)/2)
   ps = [Party(IDS[x],x) for x in range(0,len(IDS))]  #Generate new parties with the specified ids
 
-  me = ps[id]                          #Generate a new Party with input id
+  me = ps[_myID]                          #Generate a new Party with input id
   me.loadSecretShare(s1)              #Load share for p
   me.loadSecretShare(s2)              #Load share for q
   me.writeSummedShare(s1,s2,s3)     #Write share for s=p+q
 
-def productProtocol(s1,s2,s3,id,nparties):
-  print(str(id))
+def productProtocol(s1,s2,s3,nparties):
+  print(str(_myID))
   #Init parties
   IDS = [i for i in range(1,nparties+1)]
-  t = int((nparties-1)/2)
   ps = [Party(IDS[x],x) for x in range(0,len(IDS))]  #Generate new parties with the specified ids
 
-  me = ps[id]                          #Generate a new Party with input id
+  me = ps[_myID]                          #Generate a new Party with input id
   me.loadSecretShare(s1)              #Load share for p
   me.loadSecretShare(s2)              #Load share for q
-  reductionProtocol(me,s1,s2,t,ps,IDS) #Generate share for m=p*q
+  reductionProtocol(me,s1,s2,ps,nparties) #Generate share for m=p*q
   me.writeMultipliedShare(s1,s2,s3) #Write new shares to file
 
 if __name__ == "__main__":
   if len(sys.argv) < 3: sys.exit(-1)
-  sumProtocol("p","q","s",int(sys.argv[1]),int(sys.argv[2]))
-  productProtocol("p","q","m",int(sys.argv[1]),int(sys.argv[2]))
+  _myID = int(sys.argv[1])
+  np = int(sys.argv[2])
+  sumProtocol("p","q","s",np)
+  productProtocol("p","q","m",np)
+  sumProtocol("s","s","s2",np)
