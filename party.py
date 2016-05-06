@@ -21,7 +21,6 @@ def rGenProtocol(me,s1,s2,t,pids):
 #  me   = party doing the generation / distribution / receiving
 #  s1   = name of first share the vector is based off
 #  s2   = name of second share the vector is based off
-#returns: the vector v as described here - http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html
 def vGenProtocol(me,s1,s2):
   print(col.WHT+"Computing share " + str(me.id) + " of v"+col.BLN)
   me.computeVShare(s1,s2)    #Compute shares of the v matrix
@@ -32,8 +31,8 @@ def vGenProtocol(me,s1,s2):
 
 #Compute the reduced-degree share of (s1*s2)
 #  me   = party doing the computation
-#  s1   = name of first share the share is based off
-#  s2   = name of second share the share is based off
+#  s1   = name of first share the new share is based off
+#  s2   = name of second share the new share is based off
 #  v    = vector computed by vGenProtocol()
 #  t    = degree of polynomial
 #  pids = list of ids of other share-holding parties
@@ -45,8 +44,8 @@ def sGenProtocol(me,s1,s2,v,t,pids):
 
 #Compute a share of (s1*s2) with the same degree as s1 and s2
 #  me   = party doing the computation
-#  s1   = name of first share to multiplu
-#  s2   = name of second share to multiplu
+#  s1   = name of first share to multiply
+#  s2   = name of second share to multiply
 #  ids  = list of ids of other share-holding parties
 def reductionProtocol(me,s1,s2,pids):
   t = int((len(pids)-1)/2)
