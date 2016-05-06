@@ -234,6 +234,7 @@ class Party:
     l2 = mpmathify(line.split(",")[1].split(")")[0])
     return (l1,l2)
   def loadSecretShare(self,name):
+    print(col.WHT+"Loading share " + str(self.id) + " of "+name+col.BLN)
     fname = "_cloud/"+str(self.id)+name+"-share"
     # print (col.RED + fname + col.BLN)
     line = mpmathify(easyRead(fname))
@@ -242,7 +243,7 @@ class Party:
   def writeSummedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share "+s1+"+"+s2+"[" + str(self.id) + "] to file"+col.BLN)
     easyWrite("_cloud/"+str(self.id)+newname+"-share",str(self.secretshares[s1][1]+self.secretshares[s2][1]))
-  def writeComputedShare(self,s1,s2,newname):
+  def writeMultipliedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share s[" + str(self.id) + "] to file"+col.BLN)
     easyWrite("_cloud/"+str(self.id)+newname+"-share",str(self.sshares[s1+"*"+s2][1]))
   def loadV(self,s1,s2):
