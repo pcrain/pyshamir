@@ -228,7 +228,7 @@ class Party:
     name=s1+"*"+s2
     return self.sshares[s1+"*"+s2]
   def loadSShare(self,s1,s2):
-    fname = CLOUD+str(self.id)+s1+s2+"-sshare"
+    fname = CLOUD+str(self.id)+"/"+str(self.id)+s1+s2+"-sshare"
     line = easyRead(fname)
     l1 = int(line.split(",")[0].split("(")[1])
     l2 = mpmathify(line.split(",")[1].split(")")[0])
@@ -308,25 +308,25 @@ def protocol():
   print(col.YLW + str(p) + "*" + str(q) + col.BLN)
   pp = polygen(p,t)
   qq = polygen(q,t)
-  [easyWrite(CLOUD+str(pa.id)+"p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
-  [easyWrite(CLOUD+str(pa.id)+"q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
   #Individual Load and write
   [pa.loadSecretShare("p") for pa in ps]
   [pa.loadSecretShare("q") for pa in ps]
   [pa.genRandomP   ("p","q",t    ) for pa in ps]     #Generate a random polynomial r for each party
-  [pa.writeRanShares("p","q",ps   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
-  [pa.loadRanShares("p","q",ps   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
+  [pa.writeRanShares("p","q",IDS   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
+  [pa.loadRanShares("p","q",IDS   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
   #Individual compute
   [pa.computeVShare("p","q"      ) for pa in ps]     #Compute shares of the v matrix
-  [easyWrite(CLOUD+str(pa.id)+"pq-vshares",str(pa.vshares["p*q"])) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"pq-vshares",str(pa.vshares["p*q"])) for pa in ps]
   v2 = [pa.loadVShare("p","q"      ) for pa in ps]     #Aggregate the v matrix (must be done in order)
-  [easyWrite(CLOUD+str(pa.id)+"pq-v",str(v2)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"pq-v",str(v2)) for pa in ps]
   v = ps[0].loadV("p","q")
 
   A = genMatrixA(t,IDS)
   [pa.computeSShare(
     "p","q",v,A[pa.relid,:]      ) for pa in ps]     #Compute the shares of the new product
-  [easyWrite(CLOUD+str(pa.id)+"pq-sshare",str(pa.sshares["p*q"])) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"pq-sshare",str(pa.sshares["p*q"])) for pa in ps]
   #Main Finish
   s = [pa.loadSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
   print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p*q) + col.BLN)
@@ -335,6 +335,9 @@ def protocol():
 def main():
   if not os.path.exists("_cloud"):
     os.makedirs("_cloud")
+  for i in IDS:
+    fpath = CLOUD+str(i)
+    if not os.path.exists(fpath): os.makedirs(fpath)
   pass
   # mod23 = IntegersModP(23)
   # print(mod23(7).inverse())
