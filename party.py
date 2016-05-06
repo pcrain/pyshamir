@@ -1,4 +1,5 @@
 #!/usr/bin/python
+#Mockup of party for secure computation
 from pyshamir import *
 
 #Generate a random polynomial, distribute shares to other parties, and

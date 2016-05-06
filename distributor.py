@@ -1,4 +1,5 @@
 #!/usr/bin/python
+#Mockup of distributor for secure computation
 from pyshamir import *
 
 #Distribute shares of a number to a list of parties

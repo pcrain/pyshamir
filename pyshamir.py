@@ -15,11 +15,13 @@ from numpy.linalg import inv
 from mpmath import *
 mp.dps = 500; mp.pretty = True
 
-T = 2 #Degree of polynomial (Need t+1 points to define)
-N = 5 #Total number of parties
-IDS = [1,2,3,4,5]
+N = 50 #Total number of parties
+
+T = int(N/2-1) #Degree of polynomial (Need t+1 points to define)
+IDS = [i for i in range(1,N+1)]
 
 #Max value for our finite field arithmetic
+DEBUG = True
 PRIME = 2074722246773485207821695222107608587480996474721117292752992589912196684750549658310084416732550077
 SMAX = int(sqrt(PRIME)) #Maximum value for our secrets
 PMAX = int(pow(PRIME,1/N)) #Maximum value for polynomial coefficients
@@ -39,6 +41,14 @@ class col:
   MGN      ='\033[1;35m'         # Magenta
   CYN      ='\033[1;36m'         # Cyan
   WHT      ='\033[1;37m'         # White
+
+def dprint(string):
+  if DEBUG:
+    print(string)
+
+def dnprint(string,prec):
+  if DEBUG:
+    nprint(string,prec)
 
 #Cleans up temporary files between runs
 def cleanup():
@@ -102,7 +112,7 @@ def vandermonde(arr):
       vr.append(x*vr[i-1])
     v.append(vr)
   v = matrix(v)
-  # print(col.GRN + "V: \n" + col.BLN + str(v))
+  dprint(col.GRN + "V: \n" + col.BLN + str(v))
   return v
 
 #Compute an (n,t) diagonal matrix
@@ -119,8 +129,8 @@ def diag(n,t):
         aa.append(0)
     a.append(aa)
   a = matrix(a)
-  # print(col.GRN + "P: \n" + col.BLN,end="")
-  # nprint(a,5)
+  dprint(col.GRN + "P:" + col.BLN)
+  dnprint(a,5)
   return a
 
 #Generate the A matrix as described here (http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html)
@@ -130,7 +140,7 @@ def genMatrixA(t,ps):
   v = vandermonde(ps)
   p = diag(len(ps),t)
   A = (v*p)*(v**-1)
-  # print(col.GRN + "A: " + col.BLN + "\n" + nstr(A,5))
+  dprint(col.GRN + "A: " + col.BLN + "\n" + nstr(A,5))
   return A
 
 #Class for a party involved in the computation
@@ -206,7 +216,7 @@ class Party:
     name=s1+"*"+s2
     self.vshares[name] =  self.secretshares[s1][1]*self.secretshares[s2][1]
     self.vshares[name] += sum(self.ranshares[name])
-    # print(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
+    # dprint(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
 
   #Return the share of v for two other shares
   #  s1     = name of first share the v share is based off
@@ -252,9 +262,9 @@ class Party:
   #Load a secret share from disk
   #  name = name of the share to load
   def loadSecretShare(self,name):
-    print(col.WHT+"Loading share " + str(self.id) + " of "+name+col.BLN)
+    if not DEBUG:
+      print(col.WHT+"Loading share " + str(self.id) + " of "+name+col.BLN)
     fname = CLOUD+str(self.id)+"/"+str(self.id)+"-"+name+"-share"
-    # print (col.RED + fname + col.BLN)
     line = mpmathify(easyRead(fname))
     self.secretshares[name] = (self.id,line)
     return(self.secretshares[name])
@@ -291,10 +301,11 @@ class Party:
 #  parties = parties to distribute to
 def genShares(name,secret,t,parties):
   pg = polygen(secret,t)
-  # print(col.GRN + "num: " + col.BLN + str(pg))
+  dprint(col.GRN + "num: " + col.BLN + str(pg))
   for p in parties:
     p.secretshares[name] = (p.id,evalpolyat(pg,p.id) % PRIME)
-  # print(col.GRN + "num[j]: " + col.BLN + str(shares))
+  if DEBUG:
+    print(col.GRN + "num[j]: " + col.BLN + str([p.secretshares[name] for p in parties]))
 
 #Easy one-line write to file
 #  path = file to write to
@@ -353,7 +364,9 @@ def protocol():
   p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
   print(col.YLW + str(p) + "*" + str(q) + col.BLN)
   pp = polygen(p,T)
+  dprint(col.GRN + "p: \n" + col.BLN + str(pp))
   qq = polygen(q,T)
+  dprint(col.GRN + "q: \n" + col.BLN + str(qq))
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
   #Individual Load and write
@@ -364,6 +377,7 @@ def protocol():
   [pa.loadRanShares("p","q",IDS   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
   #Individual compute
   [pa.computeVShare("p","q"      ) for pa in ps]     #Compute shares of the v matrix
+  dprint(col.GRN + "v: " + col.BLN + str([pa.getVShare("p","q") for pa in ps]))
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-p-q-vshare",str(pa.vshares["p*q"])) for pa in ps]
   v2 = [pa.loadVShare("p","q"      ) for pa in ps]     #Aggregate the v matrix (must be done in order)
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-p-q-v",str(v2)) for pa in ps]
@@ -375,6 +389,9 @@ def protocol():
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-p-q-sshare",str(pa.sshares["p*q"])) for pa in ps]
   #Main Finish
   s = [pa.loadSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
+  if DEBUG:
+    # sp = [(s[i][0],nstr(s[i][1],5)) for i in range(0,len(s))]
+    print(col.GRN + "s: \n" + col.BLN + str(s))
   print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p*q) + col.BLN)
   print(col.MGN + str(IDS) + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
 
@@ -396,11 +413,10 @@ def runtests():
 
 def main():
   cleanup()
-  if not os.path.exists("_cloud"):
-    os.makedirs("_cloud")
+  if not os.path.exists(CLOUD):
+    os.makedirs(CLOUD)
   runtests()
   # protocol()
 
 if __name__ == "__main__":
-  # execute only if run as a script
   main()
