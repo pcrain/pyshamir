@@ -6,7 +6,6 @@
 #    http://cseweb.ucsd.edu/classes/fa02/cse208/lec12.html
 import sys, os, random, json, time, shutil
 from random import shuffle
-from ast import literal_eval
 
 #Numpy for matrix stuff
 import numpy as np
@@ -235,16 +234,19 @@ class Party:
     l2 = mpmathify(line.split(",")[1].split(")")[0])
     return (l1,l2)
   def loadSecretShare(self,name):
-    line = mpmathify(easyRead("_cloud/"+str(self.id)+name+"-share"))
+    fname = "_cloud/"+str(self.id)+name+"-share"
+    # print (col.RED + fname + col.BLN)
+    line = mpmathify(easyRead(fname))
     self.secretshares[name] = (self.id,line)
+    return(self.secretshares[name])
+  def writeComputedShare(self,s1,s2,newname):
+    print(col.WHT+"Writing share s[" + str(self.id) + "] to file"+col.BLN)
+    easyWrite("_cloud/"+str(self.id)+newname+"-share",str(self.sshares[s1+"*"+s2][1]))
   def loadV(self,s1,s2):
     line = easyRead("_cloud/"+str(self.id)+s1+s2+"-v").replace("[","").replace("]","").replace(" ","")
     lv = line.split(",")
     # print(lv)
-    v = []
-    for l in lv:
-      v.append(mpmathify(l))
-    return v
+    return [mpmathify(l) for l in lv]
 
 def genShares(name,secret,t,parties):
   pg = polygen(secret,t)
