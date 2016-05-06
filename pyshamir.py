@@ -16,15 +16,15 @@ from numpy.linalg import inv
 from mpmath import *
 mp.dps = 500; mp.pretty = True
 
-t = 2 #Degree of polynomial (Need t+1 points to define)
-n = 5 #Total number of parties
+T = 2 #Degree of polynomial (Need t+1 points to define)
+N = 5 #Total number of parties
 
 CLOUD="_cloud/"
 IDS = [1,2,3,4,5]
 # PRIME = 22953686867719691230002707821868552601124472329079
 PRIME = 2074722246773485207821695222107608587480996474721117292752992589912196684750549658310084416732550077
 SMAX = int(sqrt(PRIME)) #Maximum value for our secrets
-PMAX = int(pow(PRIME,1/n)) #Maximum value for polynomial coefficients
+PMAX = int(pow(PRIME,1/N)) #Maximum value for polynomial coefficients
 
 class col:
   BLN      ='\033[0m'            # Blank
@@ -39,46 +39,6 @@ class col:
   MGN      ='\033[1;35m'         # Magenta
   CYN      ='\033[1;36m'         # Cyan
   WHT      ='\033[1;37m'         # White
-
-#Finite fields, from https://jeremykun.com/2014/03/13/programming-with-finite-fields/
-def extendedEuclideanAlgorithm(a, b):
-  if abs(b) > abs(a):
-    (x,y,d) = extendedEuclideanAlgorithm(b, a)
-    return (y,x,d)
-  if abs(b) == 0:
-    return (1, 0, a)
-  x1, x2, y1, y2 = 0, 1, 1, 0
-  while abs(b) > 0:
-    q, r = divmod(a,b)
-    x = x2 - q*x1
-    y = y2 - q*y1
-    a, b, x2, x1, y2, y1 = b, r, x1, x, y1, y
-  return (x2, y2, a)
-
-def IntegersModP(p):
-  class IntegerModP(int):
-    def __init__(self, n):
-      self.n = n % p
-      self.field = IntegerModP
-    def __add__(self, other): return IntegerModP(self.n + other.n)
-    def __sub__(self, other): return IntegerModP(self.n - other.n)
-    def __mul__(self, other): return IntegerModP(self.n * other.n)
-    def __truediv__(self, other): return self * other.inverse()
-    def __div__(self, other): return self * other.inverse()
-    def __neg__(self): return IntegerModP(-self.n)
-    def __eq__(self, other): return isinstance(other, IntegerModP) and self.n == other.n
-    def __abs__(self): return abs(self.n)
-    def __str__(self): return str(self.n)
-    def __repr__(self): return '%d (mod %d)' % (self.n, self.p)
-    def __divmod__(self, divisor):
-      q,r = divmod(self.n, divisor.n)
-      return (IntegerModP(q), IntegerModP(r))
-    def inverse(self):
-     x,y,d = extendedEuclideanAlgorithm(self.n, self.p)
-     return IntegerModP(x)
-  IntegerModP.p = p
-  IntegerModP.__name__ = 'Z/%d' % (p)
-  return IntegerModP
 
 def cleanup():
   if not os.path.exists(CLOUD):
@@ -117,12 +77,6 @@ def polygen(x,d):
     poly.append(random.randrange(PMAX))
   return poly
 
-def polyprint(p):
-  print (p[0],end="")
-  for i in range(1,len(p)):
-    print(" + " + str(p[i]) + "x^" + str(i),end="")
-  print()
-
 def evalpolyat(p,x):
   # print(col.YLW + str(p) + col.RED + str(x) + col.BLN)
   s = p[0]
@@ -159,16 +113,9 @@ def diag(n,t):
 def genMatrixA(degree,parties):
   v = vandermonde(parties)
   p = diag(len(parties),degree)
-  vp = v*p
-  A = vp*(v**-1)
+  A = (v*p)*(v**-1)
   # print(col.GRN + "A: " + col.BLN + "\n" + nstr(A,5))
   return A
-  # return dot(dot(v,p),inv(v))
-
-class ShareInfo:
-  def __init__(self,idlist,j):
-    self.idlist  = idlist
-    self.arow = genMatrixA(t,idlist)[j,:] #We only need one row from the A matrix
 
 class Party:
   def __init__(self,myid,j):
@@ -259,35 +206,6 @@ def genShares(name,secret,t,parties):
     p.secretshares[name] = (p.id,evalpolyat(pg,p.id) % PRIME)
   # print(col.GRN + "num[j]: " + col.BLN + str(shares))
 
-def testAddition(ids):
-  ps = [Party(ids[x],x) for x in range(0,len(ids))]  #Generate new parties with the specified ids
-  p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
-  genShares("p",p,t,ps); genShares("q",q,t,ps)       #Distribute the two numbers to all parties
-  print(col.YLW + str(p) + "+" + str(q) + col.BLN)
-
-  sumshares = [(pa.id,pa.secretshares["p"][1] + pa.secretshares["q"][1]) for pa in ps]
-
-  print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p+q) + col.BLN)
-  print(col.MGN + str(ids) + col.GRN + "\n  " + str(int(nint(lagrange(sumshares)(0)))%PRIME) + col.BLN)
-
-def testMultiplication(ids):
-  ps = [Party(ids[x],x) for x in range(0,len(ids))]  #Generate new parties with the specified ids
-  p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
-  genShares("p",p,t,ps); genShares("q",q,t,ps)       #Distribute the two numbers to all parties
-  print(col.YLW + str(p) + "*" + str(q) + col.BLN)
-
-  A = genMatrixA(t,ids)
-  [pa.genRandomP   ("p","q",t    ) for pa in ps]     #Generate a random polynomial r for each party
-  [pa.sendRanShares("p","q",ps   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
-  [pa.computeVShare("p","q"      ) for pa in ps]     #Compute shares of the v matrix
-  v = [pa.getVShare("p","q"      ) for pa in ps]     #Aggregate the v matrix (must be done in order)
-  [pa.computeSShare(
-    "p","q",v,A[pa.relid,:]      ) for pa in ps]     #Compute the shares of the new product
-  s = [pa.getSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
-
-  print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p*q) + col.BLN)
-  print(col.MGN + str(ids) + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
-
 def easyWrite(path,line):
   with open(path,"w") as of:
     of.write(line)
@@ -300,20 +218,49 @@ def easyRead(path):
   with open(path,"r") as inf:
     return inf.read().split("\n")[0]
 
+def testAddition(ids):
+  ps = [Party(ids[x],x) for x in range(0,len(ids))]  #Generate new parties with the specified ids
+  p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
+  genShares("p",p,T,ps); genShares("q",q,T,ps)       #Distribute the two numbers to all parties
+  print(col.YLW + str(p) + "+" + str(q) + col.BLN)
+
+  sumshares = [(pa.id,pa.secretshares["p"][1] + pa.secretshares["q"][1]) for pa in ps]
+
+  print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p+q) + col.BLN)
+  print(col.MGN + str(ids) + col.GRN + "\n  " + str(int(nint(lagrange(sumshares)(0)))%PRIME) + col.BLN)
+
+def testMultiplication(ids):
+  ps = [Party(ids[x],x) for x in range(0,len(ids))]  #Generate new parties with the specified ids
+  p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
+  genShares("p",p,T,ps); genShares("q",q,T,ps)       #Distribute the two numbers to all parties
+  print(col.YLW + str(p) + "*" + str(q) + col.BLN)
+
+  A = genMatrixA(T,ids)
+  [pa.genRandomP   ("p","q",T    ) for pa in ps]     #Generate a random polynomial r for each party
+  [pa.sendRanShares("p","q",ps   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
+  [pa.computeVShare("p","q"      ) for pa in ps]     #Compute shares of the v matrix
+  v = [pa.getVShare("p","q"      ) for pa in ps]     #Aggregate the v matrix (must be done in order)
+  [pa.computeSShare(
+    "p","q",v,A[pa.relid,:]      ) for pa in ps]     #Compute the shares of the new product
+  s = [pa.getSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
+
+  print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p*q) + col.BLN)
+  print(col.MGN + str(ids) + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
+
 def protocol():
   #Constant
   ps = [Party(IDS[x],x) for x in range(0,len(IDS))]  #Generate new parties with the specified ids
   #Main Generate
   p,q = [random.randrange(SMAX) for i in range(0,2)] #Generate two numbers to multiply
   print(col.YLW + str(p) + "*" + str(q) + col.BLN)
-  pp = polygen(p,t)
-  qq = polygen(q,t)
+  pp = polygen(p,T)
+  qq = polygen(q,T)
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
   #Individual Load and write
   [pa.loadSecretShare("p") for pa in ps]
   [pa.loadSecretShare("q") for pa in ps]
-  [pa.genRandomP   ("p","q",t    ) for pa in ps]     #Generate a random polynomial r for each party
+  [pa.genRandomP   ("p","q",T    ) for pa in ps]     #Generate a random polynomial r for each party
   [pa.writeRanShares("p","q",IDS   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
   [pa.loadRanShares("p","q",IDS   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
   #Individual compute
@@ -323,7 +270,7 @@ def protocol():
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"pq-v",str(v2)) for pa in ps]
   v = ps[0].loadV("p","q")
 
-  A = genMatrixA(t,IDS)
+  A = genMatrixA(T,IDS)
   [pa.computeSShare(
     "p","q",v,A[pa.relid,:]      ) for pa in ps]     #Compute the shares of the new product
   [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"pq-sshare",str(pa.sshares["p*q"])) for pa in ps]
@@ -332,29 +279,26 @@ def protocol():
   print(col.MGN + "Answer: " + col.GRN + "\n  " + str(p*q) + col.BLN)
   print(col.MGN + str(IDS) + col.GRN + "\n  " + str(int(nint(lagrange(s)(0)))%PRIME) + col.BLN)
 
+def runtests():
+  # print(
+  #   col.CYN + str(t+1) + "-way secrets with degree t=" +
+  #   str(t) + " polynomials among " + str(n) + " parties" + col.BLN
+  # )
+  partyids = random.sample(range(1,N*10),T*2+1)
+  print(col.RED + "ADDITION" + col.BLN)
+  testAddition(partyids)       #Addition
+  print()
+  print(col.RED + "MULTIPLICATION" + col.BLN)
+  testMultiplication(partyids) #Multiplication
+  print()
+
 def main():
   if not os.path.exists("_cloud"):
     os.makedirs("_cloud")
   for i in IDS:
     fpath = CLOUD+str(i)
     if not os.path.exists(fpath): os.makedirs(fpath)
-  pass
-  # mod23 = IntegersModP(23)
-  # print(mod23(7).inverse())
-  # print(mod23(7).inverse() * mod23(7))
-
-  # print(
-  #   col.CYN + str(t+1) + "-way secrets with degree t=" +
-  #   str(t) + " polynomials among " + str(n) + " parties" + col.BLN
-  # )
-  # partyids = random.sample(range(1,n*10),t*2+1)
-
-  # print(col.RED + "ADDITION" + col.BLN)
-  # testAddition(partyids)       #Addition
-  # print()
-  # print(col.RED + "MULTIPLICATION" + col.BLN)
-  # testMultiplication(partyids) #Multiplication
-
+  runtests()
   protocol()
 
 if __name__ == "__main__":
