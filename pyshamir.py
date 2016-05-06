@@ -239,6 +239,9 @@ class Party:
     line = mpmathify(easyRead(fname))
     self.secretshares[name] = (self.id,line)
     return(self.secretshares[name])
+  def writeSummedShare(self,s1,s2,newname):
+    print(col.WHT+"Writing share "+s1+"+"+s2+"[" + str(self.id) + "] to file"+col.BLN)
+    easyWrite("_cloud/"+str(self.id)+newname+"-share",str(self.secretshares[s1][1]+self.secretshares[s2][1]))
   def writeComputedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share s[" + str(self.id) + "] to file"+col.BLN)
     easyWrite("_cloud/"+str(self.id)+newname+"-share",str(self.sshares[s1+"*"+s2][1]))

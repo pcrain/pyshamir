@@ -19,36 +19,34 @@ def vGenProtocol(me,s1,s2,parties):
   print(col.WHT+"Awaiting v from distributor"+col.BLN)
   return me.loadV("p","q")
 
-def sGenProtocol(pa,s1,s2,v,t,IDS):
-  sid = str(pa.id)
+def sGenProtocol(me,s1,s2,v,t,IDS):
+  sid = str(me.id)
   print(col.WHT+"Computing A matrix"+col.BLN)
   A = genMatrixA(t,IDS)
   print(col.WHT+"Computing share " + sid + " of s"+col.BLN)
-  pa.computeSShare("p","q",v,A[pa.relid,:]) #Compute the shares of the new product
+  me.computeSShare("p","q",v,A[me.relid,:]) #Compute the shares of the new product
   return
 
-  print(col.WHT+"Computing A matrix"+col.BLN)
-  A = genMatrixA(t,IDS)
-  print(col.WHT+"Computing share " + str(me.id) + " of s"+col.BLN)
-  me.computeSShare(s1,s2,v,A[me.relid,:]) #Compute the shares of the new product
-
-def protocol(id,total):
-  IDS = [i for i in range(1,total+1)]
-  t = int((total-1)/2)
+def protocol(id,nparties):
+  #Init parties
+  IDS = [i for i in range(1,nparties+1)]
+  t = int((nparties-1)/2)
   ps = [Party(IDS[x],x) for x in range(0,len(IDS))]  #Generate new parties with the specified ids
-  print(id)
+
   sid = str(id)
-  pa = Party(IDS[id],id)  #Generate new parties with the specified ids
+  print(sid)
+  me = Party(IDS[id],id)  #Generate new parties with the specified ids
 
   print(col.WHT+"Loading share " + sid + " of p"+col.BLN)
-  pa.loadSecretShare("p")
+  me.loadSecretShare("p")
   print(col.WHT+"Loading share " + sid + " of q"+col.BLN)
-  pa.loadSecretShare("q")
+  me.loadSecretShare("q")
+  me.writeSummedShare("p","q","pqsum")
 
-  rGenProtocol(pa,"p","q",t,ps)       #Load shares
-  v = vGenProtocol(pa,"p","q",ps)     #Generate v matrix
-  sGenProtocol(pa,"p","q",v,t,IDS)    #Generate new shares
-  pa.writeComputedShare("p","q","s")  #Write new shares to file
+  rGenProtocol(me,"p","q",t,ps)       #Load shares
+  v = vGenProtocol(me,"p","q",ps)     #Generate v matrix
+  sGenProtocol(me,"p","q",v,t,IDS)    #Generate new shares
+  me.writeComputedShare("p","q","s")  #Write new shares to file
 
 if __name__ == "__main__":
   if len(sys.argv) < 3: sys.exit(-1)
