@@ -39,7 +39,7 @@ def awaitAndComputeShares(s,pids):
 #then aggregate and print the result
 #  s3   = name of share to compute and print
 #  pids = list of ids of other parties with shares to compute from
-def sumProtocol(s3,pids):
+def addProtocol(s3,pids):
   s = awaitAndComputeShares(s3,pids)
   print(col.MGN + str([p for p in pids])   + col.GRN + "\n  " + str(s) + col.BLN)
 
@@ -56,26 +56,24 @@ def mulProtocol(s1,s2,s3,pids):
   print(col.MGN + str([p for p in pids])   + col.GRN + "\n  " + str(m) + col.BLN)
 
 def main():
-  if len(sys.argv) < 2:            sys.exit(-1)
   if not os.path.exists(CLOUD): os.makedirs(CLOUD)
-  nparties = int(sys.argv[1])
   cleanup()                        #Clear old files
 
-  pids = [i*i for i in range(1,nparties+1)]
+  pids = jload("parties.json")
   for i in pids:
     fpath = CLOUD+str(i)
     if not os.path.exists(fpath): os.makedirs(fpath)
 
-  p = 42; q = 64
-  distributeNumber("p",p,pids)
-  distributeNumber("q",q,pids)
+  secrets=jload("secrets.json")
+  for s in secrets.keys():
+    distributeNumber(s,secrets[s],pids)
 
-  sumProtocol("s",pids)
-  print(col.MGN + "Real Sum: " + col.GRN + "\n  " + str(p+q) + col.BLN)
-  mulProtocol("p","q","m",pids)
-  print(col.MGN + "Real Product: " + col.GRN + "\n  " + str(p*q) + col.BLN)
-  sumProtocol("s2",pids)
-  print(col.MGN + "Real Sum: " + col.GRN + "\n  " + str(p+q+p+q) + col.BLN)
+  computations=jload("comps.json")
+  for c in computations:
+    if c[1] == "+" or c[1] == "-":
+      addProtocol(c[3],pids)
+    elif c[1] == "*" or c[1] == "/":
+      mulProtocol(c[0],c[2],c[3],pids)
 
 if __name__ == "__main__":
   main()

@@ -13,7 +13,7 @@
 i=0
 n=10
 while [[ $i -lt $n ]]; do
-  xfce4-terminal -H --geometry=90x16+$(($RANDOM % 1200))+$(($RANDOM % 800)) --command "./party.py $i $n"
+  xfce4-terminal -H --geometry=90x16+$(($RANDOM % 1200))+$(($RANDOM % 800)) --command "./party.py $i"
   i=$((i+1))
 done
-xfce4-terminal -H --geometry=90x24+500+320 --command "./distributor.py $n"
+xfce4-terminal -H --geometry=90x24+500+320 --command "./distributor.py"

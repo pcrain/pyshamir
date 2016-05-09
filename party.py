@@ -2,6 +2,8 @@
 #Mockup of party for secure computation
 from pyshamir import *
 
+pids = []
+
 #Generate a random polynomial, distribute shares to other parties, and
 #load shares distributed by other parties
 #  me   = party doing the generation / distribution / receiving
@@ -59,22 +61,41 @@ def reductionProtocol(me,s1,s2,pids):
 #  s1   = name of first share to add
 #  s2   = name of second share to add
 #  s3   = name of third share to write to disk
-#  np   = number of parties involved
-def sumProtocol(s1,s2,s3,np):
-  pids = [i*i for i in range(1,np+1)]
+def addProtocol(s1,s2,s3):
   me = Party(pids[_myID],_myID)       #Generate a new Party with input id
   me.loadSecretShare(s1)              #Load share for p
   me.loadSecretShare(s2)              #Load share for q
   me.writeSummedShare(s1,s2,s3)       #Write share for s=p+q
 
+#Load shares s1 and s2, compute s3=s1-s2, and write share s3 to file
+#  me   = party doing the computation
+#  s1   = name of share to subtract from
+#  s2   = name of share to subtract with
+#  s3   = name of third share to write to disk
+def subProtocol(s1,s2,s3):
+  me = Party(pids[_myID],_myID)       #Generate a new Party with input id
+  me.loadSecretShare(s1)              #Load share for p
+  me.loadSecretShare(s2)              #Load share for q
+  me.writeSubbedShare(s1,s2,s3)       #Write share for s=p-q
+
 #Load shares s1 and s2, compute s3=s1*s2, and write share s3 to file
 #  me   = party doing the computation
-#  s1   = name of first share to multiplu
-#  s2   = name of second share to multiplu
+#  s1   = name of first share to multiply
+#  s2   = name of second share to multiply
 #  s3   = name of third share to write to disk
-#  np   = number of parties involved
-def mulProtocol(s1,s2,s3,np):
-  pids = [i*i for i in range(1,np+1)]
+def mulProtocol(s1,s2,s3):
+  me = Party(pids[_myID],_myID)       #Generate a new Party with input id
+  me.loadSecretShare(s1)              #Load share for p
+  me.loadSecretShare(s2)              #Load share for q
+  reductionProtocol(me,s1,s2,pids)    #Generate share for m=p*q
+  me.writeMultipliedShare(s1,s2,s3)   #Write new shares to file
+
+#Load shares s1 and s2, compute s3=s1/s2, and write share s3 to file (NOT WORKING)
+#  me   = party doing the computation
+#  s1   = name of divisor share
+#  s2   = name of dividend share
+#  s3   = name of third share to write to disk
+def divProtocol(s1,s2,s3):
   me = Party(pids[_myID],_myID)       #Generate a new Party with input id
   me.loadSecretShare(s1)              #Load share for p
   me.loadSecretShare(s2)              #Load share for q
@@ -82,15 +103,21 @@ def mulProtocol(s1,s2,s3,np):
   me.writeMultipliedShare(s1,s2,s3)   #Write new shares to file
 
 def main():
-  global _myID, np
-  if len(sys.argv) < 3: sys.exit(-1)
+  global _myID, np, pids
+  if len(sys.argv) < 2: sys.exit(-1)
   _myID = int(sys.argv[1])
-  np = int(sys.argv[2])
-  print(str(_myID))
-
-  sumProtocol("p","q","s",np)
-  mulProtocol("p","q","m",np)
-  sumProtocol("s","s","s2",np)
+  print(_myID)
+  pids = jload("parties.json")
+  computations=jload("comps.json")
+  for c in computations:
+    if c[1] == "+":
+      addProtocol(c[0],c[2],c[3])
+    elif c[1] == "-":
+      subProtocol(c[0],c[2],c[3])
+    elif c[1] == "*":
+      mulProtocol(c[0],c[2],c[3])
+    elif c[1] == "/": #(NOT WORKING)
+      divProtocol(c[0],c[2],c[3])
 
 if __name__ == "__main__":
   main()

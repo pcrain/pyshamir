@@ -50,7 +50,7 @@ def dnprint(string,prec):
   if DEBUG:
     nprint(string,prec)
 
-#Cleans up temporary files between runs
+    #Cleans up temporary files between runs
 def cleanup():
   if not os.path.exists(CLOUD):
     return
@@ -62,6 +62,37 @@ def cleanup():
       elif os.path.isdir(file_path): shutil.rmtree(file_path)
     except Exception as e:
       print(e)
+
+#Load data from a JSON file
+#  fname = file to load from
+def jload(fname):
+  with open(fname,'r') as j:
+    x = json.load(j)
+  return x
+
+#Compute the greatest common denominator of a and b
+#  a = first number
+#  b = second number
+def extendedEuclideanAlgorithm(a, b):
+  if abs(b) > abs(a):
+    (x,y,d) = extendedEuclideanAlgorithm(b, a)
+    return (y,x,d)
+  if abs(b) == 0:
+    return (1, 0, a)
+  x1, x2, y1, y2 = 0, 1, 1, 0
+  while b != 0:
+    q = floor(a / b)
+    r = floor(fmod(a,b))
+    x = x2 - q*x1
+    y = y2 - q*y1
+    a, b, x2, x1, y2, y1 = b, r, x1, x, y1, y
+  return (x2, y2, a)
+
+#Find the multiplicative inverse of n mod PRIME
+#  n = number to find the multiplicative inverse for
+def inverse(n):
+ x,y,d = extendedEuclideanAlgorithm(n, PRIME)
+ return floor(fmod(x,PRIME))
 
 #Compute the lagrange polynomial for a list of points
 #Based on code from (https://github.com/rhyzomatic/pygarble)
@@ -214,7 +245,9 @@ class Party:
   #  s2     = name of second share the v share is based off
   def computeVShare(self,s1,s2):
     name=s1+"*"+s2
-    self.vshares[name] =  self.secretshares[s1][1]*self.secretshares[s2][1]
+    # self.vshares[name] =  self.secretshares[s1][1]*inverse(self.secretshares[s2][1])
+    # self.vshares[name] =  self.secretshares[s1][1]/(self.secretshares[s2][1])
+    self.vshares[name] =  self.secretshares[s1][1]*(self.secretshares[s2][1])
     self.vshares[name] += sum(self.ranshares[name])
     # dprint(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
 
@@ -276,6 +309,14 @@ class Party:
   def writeSummedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share "+s1+"+"+s2+"[" + str(self.id) + "] to file"+col.BLN)
     easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s1][1]+self.secretshares[s2][1]))
+
+  #Write the difference of shares s1,s2 to disk
+  #  s1      = name of first share the subtracted share is based off
+  #  s2      = name of second share the subtracted share is based off
+  #  newname = name of the new subtracted share
+  def writeSubbedShare(self,s1,s2,newname):
+    print(col.WHT+"Writing share "+s1+"-"+s2+"[" + str(self.id) + "] to file"+col.BLN)
+    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s1][1]-self.secretshares[s2][1]))
 
   #Write the product of shares s1,s2 to disk
   #  s1      = name of first share the multiplied share is based off
