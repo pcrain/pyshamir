@@ -132,6 +132,10 @@ def divProtocol(s1,s2,s3):
   reductionProtocol(me,s1,s2,pids)    #Generate share for m=p*q
   me.writeMultipliedShare(s1,s2,s3)   #Write new shares to file
 
+def printComputed(s):
+  x = easyRead(CLOUD+str(pids[_myID])+"/"+str(pids[_myID])+"-"+s+"-computed")
+  print(col.YLW+s+" = "+x+col.BLN)
+
 def main():
   global _myID, np, pids
   if len(sys.argv) < 2: sys.exit(-1)
@@ -141,7 +145,7 @@ def main():
   computations=jload("comps.json")
   for c in computations:
     if len(c) == 1:
-      pass #Compute it
+      printComputed(c[0])
       continue
     if c[1] == "+":
       if type(c[2]) == int:

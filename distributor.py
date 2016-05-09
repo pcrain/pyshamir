@@ -35,10 +35,12 @@ def awaitAndComputeShares(s,pids):
   ss = [Party(pids[x],x).loadSecretShare(s) for x in range(0,len(pids))]     #Aggregate the shares of the new product
   return int(nint(lagrange(ss)(0)))%PRIME
 
-def printShare(s,pids):
+def computeFromShares(s,pids,printit=False):
   ss = [Party(pids[x],x).loadSecretShare(s) for x in range(0,len(pids))]     #Aggregate the shares of the new product
   x = int(nint(lagrange(ss)(0)))%PRIME
-  print(col.YLW+s+" = "+str(x)+col.BLN)
+  [easyWrite(CLOUD+str(pa)+"/"+str(pa)+"-"+s+"-computed",str(x)) for pa in pids]
+  if printit:
+    print(col.YLW+s+" = "+str(x)+col.BLN)
 
 #Wait for parties to sum their shares and compute their shares of s3=(s1+s2),
 #then aggregate and print the result
@@ -76,7 +78,7 @@ def main():
   computations=jload("comps.json")
   for c in computations:
     if len(c) == 1:
-      printShare(c[0],pids)
+      computeFromShares(c[0],pids)
       continue
     if type(c[2]) != int:
       if c[1] == "+" or c[1] == "-":
