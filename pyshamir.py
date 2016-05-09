@@ -310,6 +310,14 @@ class Party:
     print(col.WHT+"Writing share "+s1+"+"+s2+"[" + str(self.id) + "] to file"+col.BLN)
     easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s1][1]+self.secretshares[s2][1]))
 
+  #Write the sum of share s and constant c to disk
+  #  s1      = name of share to be summed
+  #  s2      = constant to sum share with
+  #  newname = name of the new summed share
+  def writeConstSumShare(self,s,c,newname):
+    print(col.WHT+"Writing share "+newname+"[" + str(self.id) + "] to file"+col.BLN)
+    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s][1]+c))
+
   #Write the difference of shares s1,s2 to disk
   #  s1      = name of first share the subtracted share is based off
   #  s2      = name of second share the subtracted share is based off
@@ -318,13 +326,29 @@ class Party:
     print(col.WHT+"Writing share "+s1+"-"+s2+"[" + str(self.id) + "] to file"+col.BLN)
     easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s1][1]-self.secretshares[s2][1]))
 
+  #Write the difference of share s and constant c to disk
+  #  s1      = name of share to be subtract from
+  #  s2      = constant to subtract with
+  #  newname = name of the new summed share
+  def writeConstSubShare(self,s,c,newname):
+    print(col.WHT+"Writing share "+newname+"[" + str(self.id) + "] to file"+col.BLN)
+    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s][1]-c))
+
   #Write the product of shares s1,s2 to disk
   #  s1      = name of first share the multiplied share is based off
   #  s2      = name of second share the multiplied share is based off
   #  newname = name of the new multiplied share
   def writeMultipliedShare(self,s1,s2,newname):
-    print(col.WHT+"Writing share s[" + str(self.id) + "] to file"+col.BLN)
+    print(col.WHT+"Writing share "+newname+"[" + str(self.id) + "] to file"+col.BLN)
     easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.sshares[s1+"*"+s2][1]))
+
+  #Write the product of share s and constant c to disk
+  #  s1      = name of share to be multiplied
+  #  s2      = constant to multiply share by
+  #  newname = name of the new multiplied share
+  def writeConstMultipleShare(self,s,c,newname):
+    print(col.WHT+"Writing share "+newname+"[" + str(self.id) + "] to file"+col.BLN)
+    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s][1]*c))
 
   #Load a v vector (previous computed from v shares) from disk
   #  s1     = name of first share the v vector is based off

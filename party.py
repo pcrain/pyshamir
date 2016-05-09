@@ -67,6 +67,16 @@ def addProtocol(s1,s2,s3):
   me.loadSecretShare(s2)              #Load share for q
   me.writeSummedShare(s1,s2,s3)       #Write share for s=p+q
 
+#Load shares s, compute s3=s+c, and write share s3 to file
+#  me   = party doing the computation
+#  s    = name of share to add
+#  c    = name of constant to add
+#  s3   = name of share to write to disk
+def addConstProtocol(s,c,s3):
+  me = Party(pids[_myID],_myID)       #Generate a new Party with input id
+  me.loadSecretShare(s)               #Load share for p
+  me.writeConstSumShare(s,c,s3)       #Write share for s=p+q
+
 #Load shares s1 and s2, compute s3=s1-s2, and write share s3 to file
 #  me   = party doing the computation
 #  s1   = name of share to subtract from
@@ -77,6 +87,16 @@ def subProtocol(s1,s2,s3):
   me.loadSecretShare(s1)              #Load share for p
   me.loadSecretShare(s2)              #Load share for q
   me.writeSubbedShare(s1,s2,s3)       #Write share for s=p-q
+
+#Load shares s, compute s3=s-c, and write share s3 to file
+#  me   = party doing the computation
+#  s1   = name of share to subtract from
+#  s2   = name of share to subtract with
+#  s3   = name of third share to write to disk
+def subConstProtocol(s,c,s3):
+  me = Party(pids[_myID],_myID)       #Generate a new Party with input id
+  me.loadSecretShare(s)              #Load share for p
+  me.writeConstSubShare(s,c,s3)       #Write share for s=p-q
 
 #Load shares s1 and s2, compute s3=s1*s2, and write share s3 to file
 #  me   = party doing the computation
@@ -89,6 +109,16 @@ def mulProtocol(s1,s2,s3):
   me.loadSecretShare(s2)              #Load share for q
   reductionProtocol(me,s1,s2,pids)    #Generate share for m=p*q
   me.writeMultipliedShare(s1,s2,s3)   #Write new shares to file
+
+#Load shares s, compute s3=s*c, and write share s3 to file
+#  me   = party doing the computation
+#  s    = name of share to multiply
+#  c    = name of constant to multiply
+#  s3   = name of share to write to disk
+def mulConstProtocol(s,c,s3):
+  me = Party(pids[_myID],_myID)       #Generate a new Party with input id
+  me.loadSecretShare(s)               #Load share for p
+  me.writeConstMultipleShare(s,c,s3)  #Write new shares to file
 
 #Load shares s1 and s2, compute s3=s1/s2, and write share s3 to file (NOT WORKING)
 #  me   = party doing the computation
@@ -110,12 +140,24 @@ def main():
   pids = jload("parties.json")
   computations=jload("comps.json")
   for c in computations:
+    if len(c) == 1:
+      pass #Compute it
+      continue
     if c[1] == "+":
-      addProtocol(c[0],c[2],c[3])
+      if type(c[2]) == int:
+        addConstProtocol(c[0],c[2],c[3])
+      else:
+        addProtocol(c[0],c[2],c[3])
     elif c[1] == "-":
-      subProtocol(c[0],c[2],c[3])
+      if type(c[2]) == int:
+        subConstProtocol(c[0],c[2],c[3])
+      else:
+        subProtocol(c[0],c[2],c[3])
     elif c[1] == "*":
-      mulProtocol(c[0],c[2],c[3])
+      if type(c[2]) == int:
+        mulConstProtocol(c[0],c[2],c[3])
+      else:
+        mulProtocol(c[0],c[2],c[3])
     elif c[1] == "/": #(NOT WORKING)
       divProtocol(c[0],c[2],c[3])
 

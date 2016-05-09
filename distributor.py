@@ -35,6 +35,11 @@ def awaitAndComputeShares(s,pids):
   ss = [Party(pids[x],x).loadSecretShare(s) for x in range(0,len(pids))]     #Aggregate the shares of the new product
   return int(nint(lagrange(ss)(0)))%PRIME
 
+def printShare(s,pids):
+  ss = [Party(pids[x],x).loadSecretShare(s) for x in range(0,len(pids))]     #Aggregate the shares of the new product
+  x = int(nint(lagrange(ss)(0)))%PRIME
+  print(col.YLW+s+" = "+str(x)+col.BLN)
+
 #Wait for parties to sum their shares and compute their shares of s3=(s1+s2),
 #then aggregate and print the result
 #  s3   = name of share to compute and print
@@ -70,10 +75,14 @@ def main():
 
   computations=jload("comps.json")
   for c in computations:
-    if c[1] == "+" or c[1] == "-":
-      addProtocol(c[3],pids)
-    elif c[1] == "*" or c[1] == "/":
-      mulProtocol(c[0],c[2],c[3],pids)
+    if len(c) == 1:
+      printShare(c[0],pids)
+      continue
+    if type(c[2]) != int:
+      if c[1] == "+" or c[1] == "-":
+        addProtocol(c[3],pids)
+      elif c[1] == "*" or c[1] == "/":
+        mulProtocol(c[0],c[2],c[3],pids)
 
 if __name__ == "__main__":
   main()
