@@ -24,7 +24,20 @@ def rGenProtocol(me,s1,s2,t,pids):
 #  me   = party doing the generation / distribution / receiving
 #  s1   = name of first share the vector is based off
 #  s2   = name of second share the vector is based off
-def vGenProtocol(me,s1,s2):
+def vGenProtocol(me,s1,s2,pids):
+  me.computeVShare(s1,s2)    #Compute shares of the v matrix
+  # easyWrite(CLOUD+str(me.id)+"/"+str(me.id)+"-"+s1+"-"+s2+"-vshare",str(me.vshares[s1+"*"+s2]))
+  me.shareVShare(s1,s2,pids)
+  me.computeLinearShares(s1,s2,pids)
+  me.reconstructSShare(s1,s2,pids)
+  # return me.loadV(s1,s2)
+
+#Sum previously generated random shares with (s1*s2), distribute the result, and
+#combine to form the vector v
+#  me   = party doing the generation / distribution / receiving
+#  s1   = name of first share the vector is based off
+#  s2   = name of second share the vector is based off
+def vGenProtocolOld(me,s1,s2,pids):
   print(col.WHT+"Computing share " + str(me.id) + " of v"+col.BLN)
   me.computeVShare(s1,s2)    #Compute shares of the v matrix
   print(col.WHT+"Writing shares of v[" + str(me.id) + "] to file"+col.BLN)
@@ -53,8 +66,8 @@ def sGenProtocol(me,s1,s2,v,t,pids):
 def reductionProtocol(me,s1,s2,pids):
   t = int((len(pids)-1)/2)
   rGenProtocol(me,s1,s2,t,pids)       #Load shares
-  v = vGenProtocol(me,s1,s2)          #Generate v matrix
-  sGenProtocol(me,s1,s2,v,t,pids)     #Generate new shares
+  vGenProtocol(me,s1,s2,pids)          #Generate v matrix
+  # sGenProtocol(me,s1,s2,v,t,pids)     #Generate new shares
 
 #Load shares s1 and s2, compute s3=s1+s2, and write share s3 to file
 #  me   = party doing the computation

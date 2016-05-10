@@ -58,9 +58,10 @@ def addProtocol(s3,pids):
 #  s3   = name of share to compute and print
 #  pids = list of ids of other parties with shares to compute from
 def mulProtocol(s1,s2,s3,pids):
-  awaitAndComputeV(s1,s2,pids)
-  m = awaitAndComputeShares(s3,pids)
-  print(col.MGN + str([p for p in pids])   + col.GRN + "\n  " + str(m) + col.BLN)
+  # awaitAndComputeV(s1,s2,pids)
+  # m = awaitAndComputeShares(s3,pids)
+  # print(col.MGN + str([p for p in pids])   + col.GRN + "\n  " + str(m) + col.BLN)
+  pass
 
 def main():
   if not os.path.exists(CLOUD): os.makedirs(CLOUD)
@@ -80,11 +81,11 @@ def main():
     if len(c) == 1:
       computeFromShares(c[0],pids)
       continue
-    if type(c[2]) != int:
-      if c[1] == "+" or c[1] == "-":
-        addProtocol(c[3],pids)
-      elif c[1] == "*" or c[1] == "/":
-        mulProtocol(c[0],c[2],c[3],pids)
+  #   if type(c[2]) != int:
+  #     if c[1] == "+" or c[1] == "-":
+  #       addProtocol(c[3],pids)
+  #     elif c[1] == "*" or c[1] == "/":
+  #       mulProtocol(c[0],c[2],c[3],pids)
 
 if __name__ == "__main__":
   main()

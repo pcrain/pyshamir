@@ -251,6 +251,42 @@ class Party:
     self.vshares[name] += sum(self.ranshares[name])
     # dprint(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
 
+  def shareVShare(self,s1,s2,oids):
+    name=s1+"*"+s2
+    rpoly = polygen(self.vshares[name],int((len(oids)-1)/2))
+    print(col.BLU+str(rpoly)+col.BLN)
+    for o in oids:
+      s = evalpolyat(rpoly,o)
+      easyWrite(CLOUD+str(o)+"/"+str(o)+"-"+str(self.id)+"-"+s1+"-"+s2+"-vsubshare",str(s))
+
+  def computeLinearShares(self,s1,s2,oids):
+    name=s1+"*"+s2
+    A = genMatrixA(int((len(oids)-1)/2),oids)
+    # print(col.BLU+str(A[0,0])+col.BLN)
+    ki = 0
+    for k in oids:
+      total = 0
+      ii = 0
+      for i in oids:
+        vs = easyRead(CLOUD+str(self.id)+"/"+str(self.id)+"-"+str(i)+"-"+s1+"-"+s2+"-vsubshare")
+        vs = mpmathify(vs)
+        total += (vs*A[ki,ii])
+        ii += 1
+      easyWrite(CLOUD+str(k)+"/"+str(k)+"-"+str(self.id)+"-"+s1+"-"+s2+"-vnewshare",str(total))
+      ki += 1
+      # print(col.BLU+str(vs)+col.BLN)
+
+  def reconstructSShare(self,s1,s2,oids):
+    name=s1+"*"+s2
+    svals = []
+    for o in oids:
+      v = easyRead(CLOUD+str(self.id)+"/"+str(self.id)+"-"+str(o)+"-"+s1+"-"+s2+"-vnewshare")
+      svals.append((o,mpmathify(v)))
+    s = nint(lagrange(svals)(0)) % PRIME
+    self.sshares[name] = (self.id,s)
+    # print(col.BLU+str(s)+col.BLN)
+    # s = evalpolyat(spoly,0)
+
   #Return the share of v for two other shares
   #  s1     = name of first share the v share is based off
   #  s2     = name of second share the v share is based off
