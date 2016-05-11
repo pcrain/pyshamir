@@ -1,11 +1,9 @@
 #!/bin/bash
-#Runs a distributor and multiple parties
+#Launches multiple parties for distributed computation
 
 [ -e _cloud ] && rm -r _cloud
 
-i=0
 n=10
-while [[ $i -lt $n ]]; do
+for i in `seq 0 $((n-1))`; do
   xfce4-terminal -H --geometry=90x16+$(($RANDOM % 1200))+$(($RANDOM % 800)) --command "./party.py $i"
-  i=$((i+1))
 done

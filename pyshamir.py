@@ -67,6 +67,8 @@ def cleanup():
 #Load data from a JSON file
 #  fname = file to load from
 def jload(fname):
+  if not os.path.exists(fname):
+    return None
   with open(fname,'r') as j:
     x = json.load(j)
   return x
