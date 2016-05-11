@@ -3,6 +3,7 @@
 from pyshamir import *
 
 pids = []
+secrets = {}
 
 #Generate a random polynomial, distribute shares to other parties, and
 #load shares distributed by other parties
@@ -145,20 +146,59 @@ def divProtocol(s1,s2,s3):
   reductionProtocol(me,s1,s2,pids)    #Generate share for m=p*q
   me.writeMultipliedShare(s1,s2,s3)   #Write new shares to file
 
+def computeFromShares(s,id,pids):
+  sshare = mpmathify(easyRead(CLOUD+str(id)+"/"+str(id)+"-"+s+"-share"))
+  [easyWrite(CLOUD+str(pa)+"/"+str(pa)+"-"+str(id)+"-"+s+"-revealshare",str(sshare)) for pa in pids]
+  ss = []
+  for pa in pids:
+    share = easyRead(CLOUD+str(id)+"/"+str(id)+"-"+str(pa)+"-"+s+"-revealshare")
+    ss.append((pa,mpmathify(share)))
+  n = int(nint(lagrange(ss)(0)))%PRIME
+  easyWrite(CLOUD+str(id)+"/"+str(id)+"-"+s+"-computed",str(n))
+
 def printComputed(s):
   x = easyRead(CLOUD+str(pids[_myID])+"/"+str(pids[_myID])+"-"+s+"-computed")
   print(col.YLW+s+" = "+x+col.BLN)
 
+#Distribute shares of a number to a list of parties
+#  name  = name of the secret to be distributed
+#  pids = list of ids of other parties to distribute to / receive from
+def distributeNumber(name,pids):
+  t=int((len(pids)-1)/2)
+  print(col.WHT+"Generating polynomials for "+name+col.BLN)
+  pp = polygen(secrets[name],t)
+  # print(pp)
+  print(col.WHT+"Distributing polynomial for "+name+col.BLN)
+  for x in pids:
+    base = CLOUD+str(x)
+    if not os.path.exists(base): os.makedirs(base)
+    path = base+"/"+str(x)+"-"+name+"-share"
+    # print(path)
+    easyWrite(path,str(evalpolyat(pp,x) % PRIME))
+
 def main():
-  global _myID, np, pids
+  global _myID, np, pids, secrets
   if len(sys.argv) < 2: sys.exit(-1)
   _myID = int(sys.argv[1])
   print(_myID)
+
   pids = jload("parties.json")
+  ppath = PRIV+str(pids[_myID])
+  if not os.path.exists(ppath): os.makedirs(ppath)
+  if os.path.exists(ppath+"/secrets.json"):
+    secrets=jload(ppath+"/secrets.json")
+    print(col.RED+str(secrets)+col.BLN)
+
+
   computations=jload("comps.json")
   for c in computations:
     if len(c) == 1:
+      computeFromShares(c[0],pids[_myID],pids)
       printComputed(c[0])
+      continue
+    if len(c) == 2:
+      if (c[0] in secrets.keys()):
+        distributeNumber(c[0],pids)
       continue
     if c[1] == "+":
       if type(c[2]) == int:

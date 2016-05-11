@@ -26,6 +26,7 @@ PRIME = 207472224677348520782169522210760858748099647472111729275299258991219668
 SMAX = int(sqrt(PRIME)) #Maximum value for our secrets
 PMAX = int(pow(PRIME,1/N)) #Maximum value for polynomial coefficients
 CLOUD="_cloud/" #Directory for temporary computation files
+PRIV="known-secrets/" #Directory for known secrets
 
 #Terminal color codes
 class col:
