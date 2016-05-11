@@ -6,11 +6,6 @@
 import sys, os, random, json, time, shutil
 from random import shuffle
 
-#Numpy for matrix stuff
-import numpy as np
-from numpy import dot
-from numpy.linalg import inv
-
 #mpmath for arbitrary float precision
 from mpmath import *
 mp.dps = 500; mp.pretty = True
@@ -30,18 +25,18 @@ PRIV="known-secrets/" #Directory for known secrets
 
 #Terminal color codes
 class col:
-  BLN      ='\033[0m'            # Blank
-  UND      ='\033[1;4m'          # Underlined
-  INV      ='\033[1;7m'          # Inverted
-  CRT      ='\033[1;41m'         # Critical
-  BLK      ='\033[1;30m'         # Black
-  RED      ='\033[1;31m'         # Red
-  GRN      ='\033[1;32m'         # Green
-  YLW      ='\033[1;33m'         # Yellow
-  BLU      ='\033[1;34m'         # Blue
-  MGN      ='\033[1;35m'         # Magenta
-  CYN      ='\033[1;36m'         # Cyan
-  WHT      ='\033[1;37m'         # White
+  BLN  ='\033[0m'    # Blank
+  UND  ='\033[1;4m'  # Underlined
+  INV  ='\033[1;7m'  # Inverted
+  CRT  ='\033[1;41m' # Critical
+  BLK  ='\033[1;30m' # Black
+  RED  ='\033[1;31m' # Red
+  GRN  ='\033[1;32m' # Green
+  YLW  ='\033[1;33m' # Yellow
+  BLU  ='\033[1;34m' # Blue
+  MGN  ='\033[1;35m' # Magenta
+  CYN  ='\033[1;36m' # Cyan
+  WHT  ='\033[1;37m' # White
 
 def dprint(string):
   if DEBUG:
@@ -51,7 +46,7 @@ def dnprint(string,prec):
   if DEBUG:
     nprint(string,prec)
 
-    #Cleans up temporary files between runs
+#Cleans up temporary files between runs
 def cleanup():
   if not os.path.exists(CLOUD):
     return
@@ -138,6 +133,8 @@ def evalpolyat(p,x):
     s += (p[i]*pow(x,i))
   return s
 
+#Compute the Vandermonde matrix from an array
+#  arr = Array the Vandermonde matrix is based off of
 def vandermonde(arr):
   v = []
   for x in arr:
@@ -153,16 +150,7 @@ def vandermonde(arr):
 #  n = total number of parties
 #  t = threshold number of parties
 def diag(n,t):
-  a = []
-  for i in range(0,n):
-    aa = []
-    for j in range(0,n):
-      if i == j and i >= 0 and i <= t:
-        aa.append(1)
-      else:
-        aa.append(0)
-    a.append(aa)
-  a = matrix(a)
+  a = matrix([[(1 if (i==j and i>=0 and i<=t) else 0) for j in range(0,n)] for i in range(0,n)])
   dprint(col.GRN + "P:" + col.BLN)
   dnprint(a,5)
   return a
@@ -196,8 +184,7 @@ class Party:
   #  s2   = name of second share the polynomial is based off
   #  t    = degree the polynomial will be reduced to
   def genRandomP(self,s1,s2,t):
-    name=s1+"*"+s2
-    self.ranpoly[name] = polygen(0,t*2)
+    self.ranpoly[s1+"*"+s2] = polygen(0,t*2)
     # print(col.GRN + "r[i]: " + col.BLN + str(self.ranpoly))
 
   #Generate shares from a random polynomial and distribute them (in memory)
@@ -228,7 +215,7 @@ class Party:
     name=s1+"*"+s2
     for o in oids:
       s = evalpolyat(self.ranpoly[name],o)
-      easyWrite(CLOUD+str(o)+"/"+str(o)+"-"+str(self.id)+"-"+s1+"-"+s2+"-ranshare",str(s))
+      easyWrite(str(o)+"/"+str(self.id)+"-"+s1+"-"+s2+"-ranshare",str(s))
 
   #Accept random shares from parties listen in oids (from disk)
   #  s1     = name of first share the random shares are based off
@@ -237,7 +224,7 @@ class Party:
   def loadRanShares(self,s1,s2,oids):
     name=s1+"*"+s2
     for o in oids:
-      share = mpmathify(easyRead(CLOUD+str(self.id)+"/"+str(self.id)+"-"+str(o)+"-"+s1+"-"+s2+"-ranshare"))
+      share = mpmathify(easyRead(str(self.id)+"/"+str(o)+"-"+s1+"-"+s2+"-ranshare"))
       if name in self.ranshares.keys():
         self.ranshares[name].append(share)
       else:
@@ -254,14 +241,22 @@ class Party:
     self.vshares[name] += sum(self.ranshares[name])
     # dprint(col.GRN + "v: " + col.BLN + str(self.vshares[name]))
 
+  #Share a previously computed share of v to other parties
+  #  s1     = name of first share the v share is based off
+  #  s2     = name of second share the v share is based off
+  #  oids   = list of other parties to send shares to
   def shareVShare(self,s1,s2,oids):
     name=s1+"*"+s2
     rpoly = polygen(self.vshares[name],int((len(oids)-1)/2))
     print(col.BLU+str(rpoly)+col.BLN)
     for o in oids:
       s = evalpolyat(rpoly,o)
-      easyWrite(CLOUD+str(o)+"/"+str(o)+"-"+str(self.id)+"-"+s1+"-"+s2+"-vsubshare",str(s))
+      easyWrite(str(o)+"/"+str(self.id)+"-"+s1+"-"+s2+"-vsubshare",str(s))
 
+  #Run a linear protocol to compute Av
+  #  s1     = name of first share the linear share is based off
+  #  s2     = name of second share the linear share is based off
+  #  oids   = list of other parties to send shares to
   def computeLinearShares(self,s1,s2,oids):
     name=s1+"*"+s2
     A = genMatrixA(int((len(oids)-1)/2),oids)
@@ -271,37 +266,33 @@ class Party:
       total = 0
       ii = 0
       for i in oids:
-        vs = easyRead(CLOUD+str(self.id)+"/"+str(self.id)+"-"+str(i)+"-"+s1+"-"+s2+"-vsubshare")
+        vs = easyRead(str(self.id)+"/"+str(i)+"-"+s1+"-"+s2+"-vsubshare")
         vs = mpmathify(vs)
         total += (vs*A[ki,ii])
         ii += 1
-      easyWrite(CLOUD+str(k)+"/"+str(k)+"-"+str(self.id)+"-"+s1+"-"+s2+"-vnewshare",str(total))
+      easyWrite(str(k)+"/"+str(self.id)+"-"+s1+"-"+s2+"-vnewshare",str(total))
       ki += 1
       # print(col.BLU+str(vs)+col.BLN)
 
+  #Reconstruct degree t share for s1*s2
+  #  s1     = name of first share to reconstruct from
+  #  s2     = name of second share to reconstruct from
+  #  oids   = list of other parties to send shares to
   def reconstructSShare(self,s1,s2,oids):
-    name=s1+"*"+s2
     svals = []
     for o in oids:
-      v = easyRead(CLOUD+str(self.id)+"/"+str(self.id)+"-"+str(o)+"-"+s1+"-"+s2+"-vnewshare")
+      v = easyRead(str(self.id)+"/"+str(o)+"-"+s1+"-"+s2+"-vnewshare")
       svals.append((o,mpmathify(v)))
     s = nint(lagrange(svals)(0)) % PRIME
-    self.sshares[name] = (self.id,s)
+    self.sshares[s1+"*"+s2] = (self.id,s)
     # print(col.BLU+str(s)+col.BLN)
     # s = evalpolyat(spoly,0)
-
-  #Return the share of v for two other shares
-  #  s1     = name of first share the v share is based off
-  #  s2     = name of second share the v share is based off
-  def getVShare(self,s1,s2):
-    name=s1+"*"+s2
-    return self.vshares[name]
 
   #Load v shares from disk
   #  s1     = name of first share the v share is based off
   #  s2     = name of second share the v share is based off
   def loadVShare(self,s1,s2):
-    fname = CLOUD+str(self.id)+"/"+str(self.id)+"-"+s1+"-"+s2+"-vshare"
+    fname = str(self.id)+"/"+s1+"-"+s2+"-vshare"
     line = easyRead(fname)
     return mpmathify(line)
 
@@ -318,7 +309,7 @@ class Party:
   #  s1     = name of first share the new share is based off
   #  s2     = name of second share the new share is based off
   def loadSShare(self,s1,s2):
-    fname = CLOUD+str(self.id)+"/"+str(self.id)+"-"+s1+"-"+s2+"-sshare"
+    fname = str(self.id)+"/"+s1+"-"+s2+"-sshare"
     line = easyRead(fname)
     l1 = int(line.split(",")[0].split("(")[1])
     l2 = mpmathify(line.split(",")[1].split(")")[0])
@@ -336,7 +327,7 @@ class Party:
   def loadSecretShare(self,name):
     if not DEBUG:
       print(col.WHT+"Loading share " + str(self.id) + " of "+name+col.BLN)
-    fname = CLOUD+str(self.id)+"/"+str(self.id)+"-"+name+"-share"
+    fname = str(self.id)+"/"+name+"-share"
     line = mpmathify(easyRead(fname))
     self.secretshares[name] = (self.id,line)
     return(self.secretshares[name])
@@ -347,7 +338,7 @@ class Party:
   #  newname = name of the new summed share
   def writeSummedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share "+s1+"+"+s2+"[" + str(self.id) + "] to file"+col.BLN)
-    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s1][1]+self.secretshares[s2][1]))
+    easyWrite(str(self.id)+"/"+newname+"-share",str(self.secretshares[s1][1]+self.secretshares[s2][1]))
 
   #Write the sum of share s and constant c to disk
   #  s1      = name of share to be summed
@@ -355,7 +346,7 @@ class Party:
   #  newname = name of the new summed share
   def writeConstSumShare(self,s,c,newname):
     print(col.WHT+"Writing share "+newname+"[" + str(self.id) + "] to file"+col.BLN)
-    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s][1]+c))
+    easyWrite(str(self.id)+"/"+"-"+newname+"-share",str(self.secretshares[s][1]+c))
 
   #Write the difference of shares s1,s2 to disk
   #  s1      = name of first share the subtracted share is based off
@@ -363,7 +354,7 @@ class Party:
   #  newname = name of the new subtracted share
   def writeSubbedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share "+s1+"-"+s2+"[" + str(self.id) + "] to file"+col.BLN)
-    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s1][1]-self.secretshares[s2][1]))
+    easyWrite(str(self.id)+"/"+newname+"-share",str(self.secretshares[s1][1]-self.secretshares[s2][1]))
 
   #Write the difference of share s and constant c to disk
   #  s1      = name of share to be subtract from
@@ -371,7 +362,7 @@ class Party:
   #  newname = name of the new summed share
   def writeConstSubShare(self,s,c,newname):
     print(col.WHT+"Writing share "+newname+"[" + str(self.id) + "] to file"+col.BLN)
-    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s][1]-c))
+    easyWrite(str(self.id)+"/"+newname+"-share",str(self.secretshares[s][1]-c))
 
   #Write the product of shares s1,s2 to disk
   #  s1      = name of first share the multiplied share is based off
@@ -379,7 +370,7 @@ class Party:
   #  newname = name of the new multiplied share
   def writeMultipliedShare(self,s1,s2,newname):
     print(col.WHT+"Writing share "+newname+"[" + str(self.id) + "] to file"+col.BLN)
-    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.sshares[s1+"*"+s2][1]))
+    easyWrite(str(self.id)+"/"+newname+"-share",str(self.sshares[s1+"*"+s2][1]))
 
   #Write the product of share s and constant c to disk
   #  s1      = name of share to be multiplied
@@ -387,13 +378,13 @@ class Party:
   #  newname = name of the new multiplied share
   def writeConstMultipleShare(self,s,c,newname):
     print(col.WHT+"Writing share "+newname+"[" + str(self.id) + "] to file"+col.BLN)
-    easyWrite(CLOUD+str(self.id)+"/"+str(self.id)+"-"+newname+"-share",str(self.secretshares[s][1]*c))
+    easyWrite(str(self.id)+"/"+newname+"-share",str(self.secretshares[s][1]*c))
 
   #Load a v vector (previous computed from v shares) from disk
   #  s1     = name of first share the v vector is based off
   #  s2     = name of second share the v vector is based off
   def loadV(self,s1,s2):
-    line = easyRead(CLOUD+str(self.id)+"/"+str(self.id)+"-"+s1+"-"+s2+"-v").replace("[","").replace("]","").replace(" ","")
+    line = easyRead(str(self.id)+"/"+s1+"-"+s2+"-v").replace("[","").replace("]","").replace(" ","")
     lv = line.split(",")
     # print(lv)
     return [mpmathify(l) for l in lv]
@@ -415,12 +406,14 @@ def genShares(name,secret,t,parties):
 #  path = file to write to
 #  line = string to write
 def easyWrite(path,line):
+  path = CLOUD+path
   with open(path,"w") as of:
     of.write(line)
 
 #Easy one-line read from file
 #  path = file to read from
 def easyRead(path):
+  path = CLOUD+path
   if not os.path.exists(path):
     print("Waiting for " + path + "...")
     while not os.path.exists(path):
@@ -450,7 +443,7 @@ def testMultiplication(ids):
   [pa.writeRanShares("p","q",ids   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
   [pa.loadRanShares("p","q",ids   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
   [pa.computeVShare("p","q"      ) for pa in ps]     #Compute shares of the v matrix
-  v = [pa.getVShare("p","q"      ) for pa in ps]     #Aggregate the v matrix (must be done in order)
+  v = [pa.vshares["p*q"]          for pa in ps]     #Aggregate the v matrix (must be done in order)
   [pa.computeSShare(
     "p","q",v,A[pa.relid,:]      ) for pa in ps]     #Compute the shares of the new product
   s = [pa.getSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
@@ -471,8 +464,8 @@ def protocol():
   dprint(col.GRN + "p: \n" + col.BLN + str(pp))
   qq = polygen(q,T)
   dprint(col.GRN + "q: \n" + col.BLN + str(qq))
-  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
-  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+"p-share",str(evalpolyat(pp,pa.id) % PRIME)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+"q-share",str(evalpolyat(qq,pa.id) % PRIME)) for pa in ps]
   #Individual Load and write
   [pa.loadSecretShare("p") for pa in ps]
   [pa.loadSecretShare("q") for pa in ps]
@@ -481,16 +474,16 @@ def protocol():
   [pa.loadRanShares("p","q",IDS   ) for pa in ps]     #Distribute the jth share of p_i's r to party j
   #Individual compute
   [pa.computeVShare("p","q"      ) for pa in ps]     #Compute shares of the v matrix
-  dprint(col.GRN + "v: " + col.BLN + str([pa.getVShare("p","q") for pa in ps]))
-  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-p-q-vshare",str(pa.vshares["p*q"])) for pa in ps]
+  dprint(col.GRN + "v: " + col.BLN + str([pa.vshares["p*q"]("p","q") for pa in ps]))
+  [easyWrite(CLOUD+str(pa.id)+"/"+"p-q-vshare",str(pa.vshares["p*q"])) for pa in ps]
   v2 = [pa.loadVShare("p","q"      ) for pa in ps]     #Aggregate the v matrix (must be done in order)
-  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-p-q-v",str(v2)) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+"p-q-v",str(v2)) for pa in ps]
   v = ps[0].loadV("p","q")
 
   A = genMatrixA(T,IDS)
   [pa.computeSShare(
     "p","q",v,A[pa.relid,:]      ) for pa in ps]     #Compute the shares of the new product
-  [easyWrite(CLOUD+str(pa.id)+"/"+str(pa.id)+"-p-q-sshare",str(pa.sshares["p*q"])) for pa in ps]
+  [easyWrite(CLOUD+str(pa.id)+"/"+"p-q-sshare",str(pa.sshares["p*q"])) for pa in ps]
   #Main Finish
   s = [pa.loadSShare("p","q"      ) for pa in ps]     #Aggregate the shares of the new product
   if DEBUG:

@@ -25,10 +25,10 @@ def rGenProtocol(me,s1,s2,t,pids):
 def reductionProtocol(me,s1,s2,pids):
   t = int((len(pids)-1)/2)
   rGenProtocol(me,s1,s2,t,pids)       #Load shares
-  me.computeVShare(s1,s2)    #Compute shares of the v matrix
-  me.shareVShare(s1,s2,pids)
-  me.computeLinearShares(s1,s2,pids)
-  me.reconstructSShare(s1,s2,pids)
+  me.computeVShare(s1,s2)             #Compute share of the v matrix
+  me.shareVShare(s1,s2,pids)          #Split v again and share that
+  me.computeLinearShares(s1,s2,pids)  #Compute Av
+  me.reconstructSShare(s1,s2,pids)    #Compute share of s1*s2
 
 #Load shares s1 and s2, compute s3=s1+s2, and write share s3 to file
 #  me   = party doing the computation
@@ -65,7 +65,7 @@ def subProtocol(s1,s2,s3):
 #  s2   = name of share to subtract with
 #  s3   = name of third share to write to disk
 def subConstProtocol(s,c,s3):
-  me.loadSecretShare(s)              #Load share for p
+  me.loadSecretShare(s)               #Load share for p
   me.writeConstSubShare(s,c,s3)       #Write share for s=p-q
 
 #Load shares s1 and s2, compute s3=s1*s2, and write share s3 to file
@@ -103,17 +103,14 @@ def divProtocol(s1,s2,s3):
 #  s       = value to compute
 #  printit = whether to print the share to the terminal
 def computeFromShares(s,printit=True):
-  id = pids[_myID]
-  sshare = mpmathify(easyRead(CLOUD+str(id)+"/"+str(id)+"-"+s+"-share"))
-  [easyWrite(CLOUD+str(pa)+"/"+str(pa)+"-"+str(id)+"-"+s+"-revealshare",str(sshare)) for pa in pids]
-  ss = []
-  for pa in pids:
-    share = easyRead(CLOUD+str(id)+"/"+str(id)+"-"+str(pa)+"-"+s+"-revealshare")
-    ss.append((pa,mpmathify(share)))
+  i = pids[_myID]
+  sshare = mpmathify(easyRead(str(i)+"/"+s+"-share"))
+  [easyWrite(str(p)+"/"+str(i)+"-"+s+"-tmp",str(sshare)) for p in pids]
+  ss = [(p,mpmathify(easyRead(str(i)+"/"+str(p)+"-"+s+"-tmp"))) for p in pids]
   n = int(nint(lagrange(ss)(0)))%PRIME
   if printit:
     print(col.YLW+s+" = "+str(n)+col.BLN)
-  easyWrite(CLOUD+str(id)+"/"+str(id)+"-"+s+"-computed",str(n))
+  easyWrite(str(i)+"/"+s+"-computed",str(n))
 
 #Distribute shares of a secret to a list of parties
 #  name  = name of the secret to be distributed
@@ -122,9 +119,8 @@ def distributeSecret(name):
   print(col.WHT+"Distributing polynomials for "+name+col.BLN)
   pp = polygen(secrets[name],t)
   for x in pids:
-    base = CLOUD+str(x)
-    if not os.path.exists(base): os.makedirs(base)
-    easyWrite(base+"/"+str(x)+"-"+name+"-share",str(evalpolyat(pp,x) % PRIME))
+    if not os.path.exists(CLOUD+str(x)): os.makedirs(CLOUD+str(x))
+    easyWrite(str(x)+"/"+name+"-share",str(evalpolyat(pp,x) % PRIME))
 
 def main():
   global _myID, np, pids, secrets, me
