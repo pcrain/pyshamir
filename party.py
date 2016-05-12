@@ -101,16 +101,20 @@ def divProtocol(s1,s2,s3):
 
 #Request computation of s from shares
 #  s       = value to compute
+#  parties = list of ids of parties that get to see the end result
 #  printit = whether to print the share to the terminal
-def computeFromShares(s,printit=True):
+def computeFromShares(s,parties=[],printit=True):
+  if len(parties) == 0:
+    parties = pids
   i = pids[_myID]
   sshare = mpmathify(easyRead(str(i)+"/"+s+"-share"))
-  [easyWrite(str(p)+"/"+str(i)+"-"+s+"-tmp",str(sshare)) for p in pids]
-  ss = [(p,mpmathify(easyRead(str(i)+"/"+str(p)+"-"+s+"-tmp"))) for p in pids]
-  n = int(nint(lagrange(ss)(0)))%PRIME
-  if printit:
-    print(col.YLW+s+" = "+str(n)+col.BLN)
-  easyWrite(str(i)+"/"+s+"-computed",str(n))
+  [easyWrite(str(p)+"/"+str(i)+"-"+s+"-tmp",str(sshare)) for p in parties]
+  if pids[_myID] in parties:
+    ss = [(p,mpmathify(easyRead(str(i)+"/"+str(p)+"-"+s+"-tmp"))) for p in pids]
+    n = int(nint(lagrange(ss)(0)))%PRIME
+    if printit:
+      print(col.YLW+s+" = "+str(n)+col.BLN)
+    easyWrite(str(i)+"/"+s+"-computed",str(n))
 
 #Distribute shares of a secret to a list of parties
 #  name  = name of the secret to be distributed
@@ -142,8 +146,11 @@ def main():
     if len(c) == 1:
       computeFromShares(c[0])
     elif len(c) == 2:
-      if (c[0] in secrets.keys()):
-        distributeSecret(c[0])
+      if c[1] == "!":
+        if (c[0] in secrets.keys()):
+          distributeSecret(c[0])
+      else:
+        computeFromShares(c[0],c[1])
     elif c[1] == "+":
       if type(c[2]) == int:
         addConstProtocol(c[0],c[2],c[3])

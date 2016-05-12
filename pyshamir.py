@@ -5,9 +5,7 @@
 
 import sys, os, random, json, time, shutil
 from random import shuffle
-
-#mpmath for arbitrary float precision
-from mpmath import *
+from mpmath import * #mpmath for arbitrary float precision
 mp.dps = 500; mp.pretty = True
 
 #Max value for our finite field arithmetic
