@@ -1,4 +1,5 @@
 Python Implementation of Shamir's Secret Sharing using the BGW Protocol
+
 Author: Patrick Crain
 
 ----------
